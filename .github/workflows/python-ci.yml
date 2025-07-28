@@ -1,4 +1,4 @@
-name: Backend CI
+name: Python CI
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  linting:
     runs-on: ubuntu-latest
     defaults:
       run:
