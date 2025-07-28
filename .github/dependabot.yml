@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: ""
+    schedule:
+      interval: "monthly"
+    # Group minor and patch updates together
+    groups:
+      python-packages:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Limit number of open PR's
+    open-pull-requests-limit: 10
+    # Add labels and assignees
+    labels:
+      - "dependencies"
+    reviewers:
+      - "ndewijer"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "ci"
