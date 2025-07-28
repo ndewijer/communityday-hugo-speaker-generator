@@ -256,16 +256,18 @@ class LinkedInImageExtractor:
         if image_url:
             return image_url
 
-        # Strategy 3: Try Selenium if available
-        if SELENIUM_AVAILABLE:
-            image_url = self._extract_with_selenium(normalized_url)
-            if image_url:
-                return image_url
+        # Strategy 3: Try Selenium if available (currently disabled due to LinkedIn blocking)
+        # LinkedIn appears to be blocking headless Chrome browsers entirely
+        # if SELENIUM_AVAILABLE:
+        #     image_url = self._extract_with_selenium(normalized_url)
+        #     if image_url:
+        #         return image_url
 
-        # Strategy 4: Try to construct image URL from profile ID
-        image_url = self._construct_image_url_from_profile(normalized_url)
-        if image_url:
-            return image_url
+        # Strategy 4: Try to construct image URL from profile ID (DISABLED)
+        # LinkedIn now requires expiry parameters that can't be constructed
+        # image_url = self._construct_image_url_from_profile(normalized_url)
+        # if image_url:
+        #     return image_url
 
         return None
 
@@ -393,7 +395,7 @@ class LinkedInImageExtractor:
 
         driver = None
         try:
-            # Setup Chrome options
+            # Setup Chrome options with more stealth and network settings
             chrome_options = Options()
             chrome_options.add_argument("--headless")
             chrome_options.add_argument("--no-sandbox")
@@ -402,10 +404,35 @@ class LinkedInImageExtractor:
             chrome_options.add_argument("--window-size=1920,1080")
             chrome_options.add_argument(f"--user-agent={self.ua.random}")
             chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+
+            # Additional network and stealth options
+            chrome_options.add_argument("--disable-web-security")
+            chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+            chrome_options.add_argument("--disable-extensions")
+            chrome_options.add_argument("--disable-plugins")
+            chrome_options.add_argument("--disable-images")  # Faster loading
+            chrome_options.add_argument(
+                "--disable-javascript"
+            )  # We only need HTML structure
+            chrome_options.add_argument("--disable-default-apps")
+            chrome_options.add_argument("--disable-background-timer-throttling")
+            chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+            chrome_options.add_argument("--disable-renderer-backgrounding")
+            chrome_options.add_argument("--disable-background-networking")
+            chrome_options.add_argument("--no-first-run")
+            chrome_options.add_argument("--no-default-browser-check")
+
+            # Network timeout settings
+            chrome_options.add_argument("--timeout=30000")
+            chrome_options.add_argument("--page-load-strategy=eager")
+
             chrome_options.add_experimental_option(
-                "excludeSwitches", ["enable-automation"]
+                "excludeSwitches", ["enable-automation", "enable-logging"]
             )
             chrome_options.add_experimental_option("useAutomationExtension", False)
+
+            # Set page load strategy
+            chrome_options.page_load_strategy = "eager"
 
             # Initialize driver
             driver = webdriver.Chrome(options=chrome_options)
@@ -415,29 +442,33 @@ class LinkedInImageExtractor:
 
             # First, navigate to LinkedIn to set the domain context
             driver.get("https://www.linkedin.com")
-            
+
             # Transfer cookies from requests session to Selenium
             if self.authenticated and self.session.cookies:
-                self.logger.debug("Transferring cookies from requests session to Selenium")
+                self.logger.debug(
+                    "Transferring cookies from requests session to Selenium"
+                )
                 for cookie in self.session.cookies:
-                    if 'linkedin.com' in cookie.domain:
+                    if "linkedin.com" in cookie.domain:
                         try:
                             # Convert requests cookie to Selenium cookie format
                             selenium_cookie = {
-                                'name': cookie.name,
-                                'value': cookie.value,
-                                'domain': cookie.domain,
-                                'path': cookie.path or '/',
-                                'secure': cookie.secure or False,
+                                "name": cookie.name,
+                                "value": cookie.value,
+                                "domain": cookie.domain,
+                                "path": cookie.path or "/",
+                                "secure": cookie.secure or False,
                             }
                             # Only add expiry if it exists and is valid
                             if cookie.expires:
-                                selenium_cookie['expiry'] = int(cookie.expires)
-                            
+                                selenium_cookie["expiry"] = int(cookie.expires)
+
                             driver.add_cookie(selenium_cookie)
                             self.logger.debug(f"Added cookie: {cookie.name}")
                         except Exception as e:
-                            self.logger.warning(f"Failed to add cookie {cookie.name}: {e}")
+                            self.logger.warning(
+                                f"Failed to add cookie {cookie.name}: {e}"
+                            )
 
             # Now load the actual profile page with cookies
             driver.get(url)
@@ -446,6 +477,39 @@ class LinkedInImageExtractor:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
+
+            # Check if we got an error page
+            page_source = driver.page_source
+            if any(
+                error_indicator in page_source.lower()
+                for error_indicator in [
+                    "chrome-error://",
+                    "err_network_changed",
+                    "err_internet_disconnected",
+                    "err_connection_refused",
+                    "err_name_not_resolved",
+                    "this site can't be reached",
+                    "check your internet connection",
+                    "copyright 2013 the chromium authors",  # Chrome error page CSS
+                ]
+            ):
+                self.logger.warning(
+                    f"Selenium encountered a network error page for {url}"
+                )
+                return None
+
+            # Check if LinkedIn is blocking us
+            if any(
+                block_indicator in page_source.lower()
+                for block_indicator in [
+                    "request blocked",
+                    "access denied",
+                    "temporarily unavailable",
+                    "linkedin.com/authwall",
+                ]
+            ):
+                self.logger.warning(f"LinkedIn is blocking Selenium access to {url}")
+                return None
 
             # Try multiple selectors for profile images
             selectors = [
@@ -568,6 +632,18 @@ class LinkedInImageExtractor:
             Image URL if found, None otherwise
         """
         patterns = [
+            # Broad LinkedIn media URL patterns - INCLUDE ALL PARAMETERS
+            r'(https://media\.licdn\.com/dms/image/v2/[^"\s]+profile-displayphoto[^"\s]*\?[^"\s]*)',
+            r'(https://media\.licdn\.com/dms/image/[^"\s]+profile-displayphoto[^"\s]*\?[^"\s]*)',
+            # Specific attribute patterns - INCLUDE ALL PARAMETERS
+            r'src="(https://media\.licdn\.com/dms/image/v2/[^"]+profile-displayphoto[^"]*\?[^"]*)"',
+            r'data-delayed-url="(https://media\.licdn\.com/dms/image/v2/[^"]+profile-displayphoto[^"]*\?[^"]*)"',
+            r'data-ghost-url="(https://media\.licdn\.com/dms/image/v2/[^"]+profile-displayphoto[^"]*\?[^"]*)"',
+            r'href="(https://media\.licdn\.com/dms/image/v2/[^"]+profile-displayphoto[^"]*\?[^"]*)"',
+            # Fallback patterns without query parameters (less likely to work)
+            r'(https://media\.licdn\.com/dms/image/v2/[^"\s&]+profile-displayphoto[^"\s&]*)',
+            r'(https://media\.licdn\.com/dms/image/[^"\s&]+profile-displayphoto[^"\s&]*)',
+            # JSON patterns
             r'"profilePicture":"([^"]+)"',
             r'"profile_picture":"([^"]+)"',
             r'"profilePhoto":"([^"]+)"',
@@ -576,6 +652,9 @@ class LinkedInImageExtractor:
             r'"picture":"(https://media\.licdn\.com/[^"]+)"',
             r'profilePicture:\s*"([^"]+)"',
             r'profile_picture:\s*"([^"]+)"',
+            # Legacy patterns
+            r'"(https://media\.licdn\.com/dms/image/[^"]+profile-displayphoto[^"]*)"',
+            r'src="(https://media\.licdn\.com/dms/image/[^"]+profile-displayphoto[^"]*)"',
         ]
 
         for pattern in patterns:
