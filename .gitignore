@@ -32,9 +32,7 @@ Thumbs.db
 # Debug scripts
 debug_linkedin_html.py
 debug_linkedin.html
-test_retry_logic_verbose.py
-test_retry_logic.py
-test_linkedin_extrctor.py
+
 # Test scripts
 test_retry_logic_verbose.py
 test_retry_logic.py
