@@ -226,6 +226,23 @@ python test_linkedin_extractor.py
 
 For detailed documentation on the enhanced LinkedIn extractor, see [LINKEDIN_EXTRACTOR_README.md](LINKEDIN_EXTRACTOR_README.md).
 
+#### LinkedIn Authentication (Optional)
+
+For significantly improved LinkedIn extraction success rates (70-90% vs ~5%), you can provide LinkedIn session cookies:
+
+**Quick Setup:**
+1. Log into LinkedIn in your browser
+2. Extract session cookies (see [LINKEDIN_COOKIES_GUIDE.md](LINKEDIN_COOKIES_GUIDE.md) for detailed instructions)
+3. Set cookies via environment variable:
+   ```bash
+   export LINKEDIN_COOKIES="li_at=VALUE1; JSESSIONID=VALUE2; bcookie=VALUE3..."
+   ```
+4. Or create a `linkedin_cookies.txt` file in the project root
+
+**Security Note:** Keep cookies private and refresh them periodically (they expire every 2-4 weeks).
+
+For complete cookie extraction instructions, see [LINKEDIN_COOKIES_GUIDE.md](LINKEDIN_COOKIES_GUIDE.md).
+
 ### Image Processing Notes
 
 - **LinkedIn URL Normalization**: The system automatically normalizes LinkedIn URLs that are missing the `https://` protocol scheme

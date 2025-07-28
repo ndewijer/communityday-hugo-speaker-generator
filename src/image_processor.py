@@ -18,6 +18,8 @@ from .config import (
     IMAGE_SIZE,
     IMAGE_QUALITY,
     REQUEST_TIMEOUT,
+    LINKEDIN_SESSION_COOKIES,
+    LINKEDIN_COOKIES_FILE,
 )
 
 # Try to import the enhanced LinkedIn extractor, fall back to basic extraction if not available
@@ -45,10 +47,22 @@ class ImageProcessor:
 
         # Initialize enhanced LinkedIn extractor if available
         if ENHANCED_EXTRACTOR_AVAILABLE:
+            # Determine cookie source
+            cookies = self._get_linkedin_cookies()
+
             self.linkedin_extractor = LinkedInImageExtractor(
-                request_timeout=REQUEST_TIMEOUT, retry_attempts=3
+                request_timeout=REQUEST_TIMEOUT, retry_attempts=3, cookies=cookies
             )
-            print("   ✓ Enhanced LinkedIn extractor loaded")
+
+            if cookies:
+                if self.linkedin_extractor.is_authenticated():
+                    print("   ✓ Enhanced LinkedIn extractor loaded with authentication")
+                else:
+                    print(
+                        "   ⚠️  Enhanced LinkedIn extractor loaded but authentication failed"
+                    )
+            else:
+                print("   ✓ Enhanced LinkedIn extractor loaded (no authentication)")
         else:
             self.linkedin_extractor = None
             print(
@@ -63,6 +77,28 @@ class ImageProcessor:
         # Set LinkedIn extractor logger to INFO level to suppress debug messages
         linkedin_logger = logging.getLogger("src.linkedin_extractor")
         linkedin_logger.setLevel(logging.INFO)
+
+    def _get_linkedin_cookies(self) -> Optional[str]:
+        """
+        Get LinkedIn cookies from configuration or environment.
+
+        Returns:
+            Cookie string or file path, None if not configured
+        """
+        # Check environment variable first
+        cookies = os.environ.get("LINKEDIN_COOKIES")
+        if cookies:
+            return cookies
+
+        # Check configuration
+        if LINKEDIN_SESSION_COOKIES:
+            return LINKEDIN_SESSION_COOKIES
+
+        # Check for cookies file
+        if os.path.exists(LINKEDIN_COOKIES_FILE):
+            return LINKEDIN_COOKIES_FILE
+
+        return None
 
     def _load_previous_failures(self):
         """Load previous failures from missing_photos.csv for retry."""
@@ -93,15 +129,19 @@ class ImageProcessor:
         except Exception as e:
             print(f"   ⚠️  Could not load previous failures: {str(e)}")
 
-    def process_speaker_image(self, speaker_data: Dict) -> bool:
+    def process_speaker_image(
+        self, speaker_data: Dict, retry_mode: bool = False
+    ) -> str:
         """
         Process and save speaker image.
 
         Args:
             speaker_data: Dictionary containing speaker information
+            retry_mode: If True, only count LinkedIn success as real success
 
         Returns:
-            True if successful, False otherwise
+            'success' if got actual image, 'default' if fell back to default,
+            'failed' if completely failed
         """
         speaker_slug = speaker_data["slug"]
         speaker_name = speaker_data["name"]
@@ -118,7 +158,7 @@ class ImageProcessor:
         if custom_photo_url:
             if self._download_and_process_image(custom_photo_url, output_path):
                 self.processed_count += 1
-                return True
+                return "success"
             else:
                 self._log_missing_photo(
                     speaker_name,
@@ -134,7 +174,7 @@ class ImageProcessor:
                 linkedin_image_url, output_path
             ):
                 self.processed_count += 1
-                return True
+                return "success"
             else:
                 self._log_missing_photo(
                     speaker_name,
@@ -153,7 +193,7 @@ class ImageProcessor:
                     "",
                     "No LinkedIn URL or custom photo provided",
                 )
-            return True
+            return "default"
         else:
             self.failed_count += 1
             self._log_missing_photo(
@@ -162,7 +202,7 @@ class ImageProcessor:
                 linkedin_url,
                 "Default image copy failed",
             )
-            return False
+            return "failed"
 
     def _download_and_process_image(self, url: str, output_path: str) -> bool:
         """
@@ -449,9 +489,10 @@ class ImageProcessor:
 
     def process_all_speaker_images(self, speakers: Dict[str, Dict]) -> Dict:
         """
-        Process images for all speakers.
+        Process images for all speakers using unified flow.
 
-        Prioritizes retry attempts for speakers that failed in previous runs.
+        Prioritizes retry attempts for speakers that failed in previous runs,
+        then processes remaining speakers. Prevents double processing.
 
         Args:
             speakers: Dictionary of speaker data
@@ -461,8 +502,10 @@ class ImageProcessor:
         """
         print(f"\n🖼️  Processing speaker images...")
 
-        # First, process retry queue (previous failures)
+        processed_speakers = set()
         retry_successes = 0
+
+        # Phase 1: Process retry queue (high priority)
         if self.retry_queue:
             print(
                 f"   🔄 Retrying {len(self.retry_queue)} previous LinkedIn failures..."
@@ -470,69 +513,56 @@ class ImageProcessor:
 
             for retry_item in self.retry_queue:
                 email = retry_item["email"]
-                if email in speakers:
+                if email in speakers and email not in processed_speakers:
                     speaker_data = speakers[email].copy()
                     speaker_data["email"] = email
 
                     print(f"   🔄 Retrying: {retry_item['name']}")
 
-                    # Check if we already have a successful image
-                    speaker_slug = speaker_data["slug"]
-                    img_path = os.path.join(
-                        OUTPUT_DIR,
-                        "content",
-                        "speakers",
-                        speaker_slug,
-                        "img",
-                        "photo.jpg",
-                    )
+                    # Process with retry mode - only count actual LinkedIn success
+                    result = self.process_speaker_image(speaker_data, retry_mode=True)
+                    if result == "success":
+                        print(f"   ✅ Retry successful!")
+                        retry_successes += 1
+                    elif result == "default":
+                        print(f"   ❌ Still failed - using default image")
+                    else:
+                        print(f"   ❌ Failed completely")
 
-                    if os.path.exists(img_path) and os.path.getsize(img_path) > 0:
-                        # Skip if we already have an image (might be default from previous run)
-                        # But only if it's not the default image
-                        if not self._is_default_image(img_path):
-                            print(f"   ✓ Already has custom image, skipping retry")
-                            continue
-
-                    # Try LinkedIn extraction again
-                    linkedin_url = speaker_data.get("linkedin", "")
-                    if linkedin_url:
-                        linkedin_image_url = self._extract_linkedin_image_url(
-                            linkedin_url
-                        )
-                        if linkedin_image_url and self._download_and_process_image(
-                            linkedin_image_url, img_path
-                        ):
-                            print(f"   ✅ Retry successful!")
-                            retry_successes += 1
-                            self.processed_count += 1
-                            continue
-
-                    # If retry failed, it will be logged again in the regular processing
+                    processed_speakers.add(email)
 
             if retry_successes > 0:
                 print(
                     f"   🎉 Successfully recovered {retry_successes} images from previous failures!"
                 )
 
-        # Then process all speakers normally
-        total_speakers = len(speakers)
-        current = 0
+        # Phase 2: Process remaining speakers
+        remaining_speakers = [
+            (email, data)
+            for email, data in speakers.items()
+            if email not in processed_speakers
+        ]
 
-        for email, speaker_data in speakers.items():
-            current += 1
+        if remaining_speakers:
+            print(f"   📋 Processing {len(remaining_speakers)} remaining speakers...")
+
+        for i, (email, speaker_data) in enumerate(remaining_speakers, 1):
             speaker_name = speaker_data["name"]
-            print(f"   [{current}/{total_speakers}] {speaker_name}")
+            total_remaining = len(remaining_speakers)
+            print(f"   [{i}/{total_remaining}] {speaker_name}")
 
             # Add email to speaker data for logging
             speaker_data_with_email = speaker_data.copy()
             speaker_data_with_email["email"] = email
 
             self.process_speaker_image(speaker_data_with_email)
+            processed_speakers.add(email)
 
         # Save missing photos report
         self.save_missing_photos_report()
 
+        # Final statistics
+        print(f"   ✓ Total processed: {len(processed_speakers)}")
         print(f"   ✓ Downloaded: {self.processed_count}")
         if retry_successes > 0:
             print(f"   🔄 Retry successes: {retry_successes}")
@@ -548,49 +578,6 @@ class ImageProcessor:
             self.linkedin_extractor.close()
 
         return self.get_statistics()
-
-    def _is_default_image(self, image_path: str) -> bool:
-        """
-        Check if the image at the given path is the default image.
-
-        Args:
-            image_path: Path to the image file
-
-        Returns:
-            True if it's the default image, False otherwise
-        """
-        try:
-            if not os.path.exists(image_path) or not os.path.exists(
-                DEFAULT_SPEAKER_IMAGE
-            ):
-                return False
-
-            # Compare file sizes first as a quick check
-            current_size = os.path.getsize(image_path)
-            default_size = os.path.getsize(DEFAULT_SPEAKER_IMAGE)
-
-            # If sizes are different, it's definitely not the default image
-            if current_size != default_size:
-                return False
-
-            # If sizes are the same, compare file contents to be sure
-            with open(image_path, "rb") as f1, open(DEFAULT_SPEAKER_IMAGE, "rb") as f2:
-                # Read in chunks to handle large files efficiently
-                chunk_size = 8192
-                while True:
-                    chunk1 = f1.read(chunk_size)
-                    chunk2 = f2.read(chunk_size)
-
-                    if chunk1 != chunk2:
-                        return False
-
-                    if not chunk1:  # End of file
-                        break
-
-            return True
-
-        except Exception:
-            return False
 
     def close(self):
         """Close and cleanup resources."""

@@ -7,6 +7,7 @@ Provides multiple strategies for extracting profile images from LinkedIn profile
 import requests
 import time
 import re
+import os
 from typing import Optional, List
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
@@ -29,21 +30,31 @@ except ImportError:
 class LinkedInImageExtractor:
     """Handles LinkedIn profile image extraction using multiple strategies."""
 
-    def __init__(self, request_timeout: int = 15, retry_attempts: int = 3):
+    def __init__(
+        self,
+        request_timeout: int = 15,
+        retry_attempts: int = 3,
+        cookies: Optional[str] = None,
+    ):
         """
         Initialize LinkedIn image extractor.
 
         Args:
             request_timeout: Timeout for HTTP requests in seconds
             retry_attempts: Number of retry attempts for failed requests
+            cookies: LinkedIn session cookies (string or file path)
         """
         self.request_timeout = request_timeout
         self.retry_attempts = retry_attempts
         self.ua = UserAgent()
         self.session = requests.Session()
+        self.authenticated = False
 
         # Setup logging
         self.logger = logging.getLogger(__name__)
+
+        # Load LinkedIn cookies if provided
+        self._load_linkedin_cookies(cookies)
 
         # Common headers for requests
         self.headers = {
@@ -53,6 +64,134 @@ class LinkedInImageExtractor:
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
+
+    def _load_linkedin_cookies(self, cookies: Optional[str]) -> None:
+        """
+        Load LinkedIn session cookies for authenticated requests.
+
+        Args:
+            cookies: Cookie string or file path containing cookies
+        """
+        if not cookies:
+            return
+
+        try:
+            # Check if cookies is a file path
+            if os.path.isfile(cookies):
+                with open(cookies, "r", encoding="utf-8") as f:
+                    cookie_content = f.read().strip()
+            else:
+                cookie_content = cookies.strip()
+
+            if not cookie_content:
+                return
+
+            # Parse cookies and add to session
+            self._parse_and_set_cookies(cookie_content)
+
+            if self.authenticated:
+                self.logger.info("LinkedIn session cookies loaded successfully")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to load LinkedIn cookies: {e}")
+
+    def _parse_and_set_cookies(self, cookie_string: str) -> None:
+        """
+        Parse cookie string and set them in the session.
+
+        Args:
+            cookie_string: Raw cookie string from browser
+        """
+        try:
+            # Handle different cookie formats
+            if "; " in cookie_string:
+                # Format: "name1=value1; name2=value2"
+                cookie_pairs = cookie_string.split("; ")
+            elif "\n" in cookie_string:
+                # Format: multi-line cookies
+                cookie_pairs = [
+                    line.strip() for line in cookie_string.split("\n") if "=" in line
+                ]
+            else:
+                # Single cookie
+                cookie_pairs = [cookie_string]
+
+            linkedin_cookies = {}
+            for pair in cookie_pairs:
+                if "=" in pair:
+                    name, value = pair.split("=", 1)
+                    name = name.strip()
+                    value = value.strip()
+
+                    # Only add LinkedIn-related cookies
+                    if any(
+                        keyword in name.lower()
+                        for keyword in [
+                            "li_",
+                            "linkedin",
+                            "jsessionid",
+                            "bcookie",
+                            "bscookie",
+                        ]
+                    ):
+                        linkedin_cookies[name] = value
+
+            if linkedin_cookies:
+                # Set cookies for LinkedIn domain
+                for name, value in linkedin_cookies.items():
+                    self.session.cookies.set(name, value, domain=".linkedin.com")
+
+                self.authenticated = True
+                self.logger.debug(f"Set {len(linkedin_cookies)} LinkedIn cookies")
+            else:
+                self.logger.warning(
+                    "No valid LinkedIn cookies found in provided string"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error parsing cookies: {e}")
+
+    def is_authenticated(self) -> bool:
+        """
+        Check if the extractor has valid LinkedIn authentication.
+
+        Returns:
+            True if authenticated, False otherwise
+        """
+        return self.authenticated
+
+    def test_authentication(self) -> bool:
+        """
+        Test if the current authentication is working.
+
+        Returns:
+            True if authentication is valid, False otherwise
+        """
+        if not self.authenticated:
+            return False
+
+        try:
+            # Test with a simple LinkedIn request
+            response = self.session.get(
+                "https://www.linkedin.com/feed/",
+                headers=self.headers,
+                timeout=self.request_timeout,
+                allow_redirects=False,
+            )
+
+            # If we get redirected to login, authentication failed
+            if response.status_code == 302 and "login" in response.headers.get(
+                "Location", ""
+            ):
+                self.authenticated = False
+                return False
+
+            # If we get a successful response, authentication is working
+            return response.status_code == 200
+
+        except Exception as e:
+            self.logger.warning(f"Authentication test failed: {e}")
+            return False
 
     def normalize_linkedin_url(self, linkedin_url: str) -> str:
         """
@@ -274,7 +413,33 @@ class LinkedInImageExtractor:
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
 
-            # Load the page
+            # First, navigate to LinkedIn to set the domain context
+            driver.get("https://www.linkedin.com")
+            
+            # Transfer cookies from requests session to Selenium
+            if self.authenticated and self.session.cookies:
+                self.logger.debug("Transferring cookies from requests session to Selenium")
+                for cookie in self.session.cookies:
+                    if 'linkedin.com' in cookie.domain:
+                        try:
+                            # Convert requests cookie to Selenium cookie format
+                            selenium_cookie = {
+                                'name': cookie.name,
+                                'value': cookie.value,
+                                'domain': cookie.domain,
+                                'path': cookie.path or '/',
+                                'secure': cookie.secure or False,
+                            }
+                            # Only add expiry if it exists and is valid
+                            if cookie.expires:
+                                selenium_cookie['expiry'] = int(cookie.expires)
+                            
+                            driver.add_cookie(selenium_cookie)
+                            self.logger.debug(f"Added cookie: {cookie.name}")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to add cookie {cookie.name}: {e}")
+
+            # Now load the actual profile page with cookies
             driver.get(url)
 
             # Wait for page to load

@@ -42,6 +42,10 @@ IMAGE_SIZE = (400, 400)  # Square image dimensions
 IMAGE_QUALITY = 85
 REQUEST_TIMEOUT = 10  # seconds
 
+# LinkedIn authentication settings
+LINKEDIN_SESSION_COOKIES = None  # Set to cookie string or file path
+LINKEDIN_COOKIES_FILE = "linkedin_cookies.txt"  # Optional cookie file
+
 # Console output emojis
 EMOJIS = {
     "rocket": "🚀",

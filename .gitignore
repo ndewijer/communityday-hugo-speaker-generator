@@ -15,6 +15,10 @@ data/
 generated_files/
 missing_photos.csv
 
+# LinkedIn authentication (sensitive)
+linkedin_cookies.txt
+LINKEDIN_COOKIES
+
 # IDE
 .vscode/
 .idea/
