@@ -22,16 +22,23 @@ from tqdm import tqdm
 class LinkedInSeleniumExtractor:
     """Selenium-based LinkedIn profile image extractor."""
 
-    def __init__(self, user_data_dir: str = ".selenium", request_delay: float = 2.5):
+    def __init__(
+        self,
+        user_data_dir: str = ".selenium",
+        request_delay: float = 2.5,
+        debug: bool = False,
+    ):
         """
         Initialize the LinkedIn Selenium extractor.
 
         Args:
             user_data_dir: Directory to store browser session data
             request_delay: Delay between requests to avoid rate limiting
+            debug: Enable debug output for troubleshooting
         """
         self.user_data_dir = user_data_dir
         self.request_delay = request_delay
+        self.debug = debug
         self.driver = None
 
     def login_to_linkedin(self) -> bool:
@@ -192,14 +199,21 @@ class LinkedInSeleniumExtractor:
 
         try:
             driver = webdriver.Chrome(options=options)
-            pid = driver.service.process.pid if driver.service.process else "unknown"
-            print(f"   ✅ Chrome driver created successfully (PID: {pid})")
+
+            # Only show debug messages when debug mode is enabled
+            if self.debug:
+                pid = (
+                    driver.service.process.pid if driver.service.process else "unknown"
+                )
+                print(f"   ✅ Chrome driver created successfully (PID: {pid})")
 
             # Additional setup for stability
             driver.set_page_load_timeout(30)
             driver.implicitly_wait(10)
 
-            print(f"   🌐 Chrome window should be visible (headless: {headless})")
+            if self.debug:
+                print(f"   🌐 Chrome window should be visible (headless: {headless})")
+
             return driver
 
         except WebDriverException as e:
