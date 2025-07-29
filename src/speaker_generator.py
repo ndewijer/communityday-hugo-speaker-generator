@@ -93,29 +93,78 @@ class SpeakerGenerator:
 
         return markdown
 
-    def generate_all_speaker_profiles(self, speakers: Dict[str, Dict]) -> Dict:
+    def should_skip_speaker_profile(
+        self, speaker_data: Dict, force_regenerate: bool = False
+    ) -> bool:
         """
-        Generate profiles for all speakers.
+        Determine if speaker profile generation should be skipped.
+
+        Args:
+            speaker_data: Dictionary containing speaker information
+            force_regenerate: If True, never skip
+
+        Returns:
+            True if should skip, False if should generate
+        """
+        if force_regenerate:
+            return False
+
+        speaker_slug = speaker_data["slug"]
+        profile_path = os.path.join(
+            OUTPUT_DIR, "content", "speakers", speaker_slug, "index.md"
+        )
+
+        return os.path.exists(profile_path)
+
+    def generate_all_speaker_profiles(
+        self, speakers: Dict[str, Dict], force_regenerate: bool = False
+    ) -> Dict:
+        """
+        Generate profiles for all speakers with smart skip logic.
 
         Args:
             speakers: Dictionary of speaker data
+            force_regenerate: If True, regenerate all profiles
 
         Returns:
             Generation statistics
         """
         print(f"\n📝 Generating speaker profiles...")
 
+        if force_regenerate:
+            print("   🔄 Force regeneration enabled - rebuilding all profiles")
+
         total_speakers = len(speakers)
         current = 0
+        skipped_count = 0
 
         for email, speaker_data in speakers.items():
             current += 1
             speaker_name = speaker_data["name"]
-            print_progress(current, total_speakers, speaker_name)
 
-            self.generate_speaker_profile(speaker_data)
+            # Check if we should skip this speaker profile
+            if self.should_skip_speaker_profile(speaker_data, force_regenerate):
+                print_progress(
+                    current,
+                    total_speakers,
+                    f"✓ Skipped: {speaker_name} (already exists)",
+                )
+                skipped_count += 1
+            else:
+                if force_regenerate:
+                    print_progress(
+                        current,
+                        total_speakers,
+                        f"🔄 Force regenerating: {speaker_name}",
+                    )
+                else:
+                    print_progress(current, total_speakers, speaker_name)
+
+                self.generate_speaker_profile(speaker_data)
 
         print(f"   ✓ Generated {self.generated_count} speaker profiles")
+        if skipped_count > 0:
+            print(f"   ✓ Skipped: {skipped_count}")
         if self.failed_count > 0:
             print(f"   ⚠️  Failed: {self.failed_count}")
 

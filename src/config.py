@@ -42,6 +42,10 @@ IMAGE_SIZE = (400, 400)  # Square image dimensions
 IMAGE_QUALITY = 85
 REQUEST_TIMEOUT = 10  # seconds
 
+# LinkedIn Selenium Configuration
+SELENIUM_USER_DATA_DIR = ".selenium"  # Directory for browser session data
+LINKEDIN_REQUEST_DELAY = 2.5  # Delay between LinkedIn requests (seconds)
+
 # Console output emojis
 EMOJIS = {
     "rocket": "🚀",

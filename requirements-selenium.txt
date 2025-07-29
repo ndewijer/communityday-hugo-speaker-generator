@@ -1,0 +1,5 @@
+# Optional Selenium dependencies for enhanced LinkedIn image extraction
+# Install with: pip install -r requirements-selenium.txt
+
+selenium>=4.15.0
+tqdm>=4.65.0

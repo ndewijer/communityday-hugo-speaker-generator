@@ -1,9 +1,8 @@
+# Basic requirements for Hugo Speaker Generator
+# These are the minimum dependencies needed for core functionality
+
 pandas>=2.0.0
 openpyxl>=3.1.0
 requests>=2.31.0
 Pillow>=10.0.0
 pyyaml>=6.0
-selenium>=4.15.0
-beautifulsoup4>=4.12.0
-lxml>=4.9.0
-fake-useragent>=1.4.0

@@ -5,11 +5,28 @@ Orchestrates the complete generation process from Excel data to Hugo markdown fi
 """
 
 import sys
+import argparse
 from src.data_processor import DataProcessor
 from src.speaker_generator import SpeakerGenerator
 from src.session_generator import SessionGenerator
 from src.image_processor import ImageProcessor
 from src.config import EMOJIS
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Hugo Speaker Generator - Generate speaker profiles and "
+            "session files from Excel data"
+        )
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force regeneration of all files (ignore existing files)",
+    )
+    return parser.parse_args()
 
 
 def print_header():
@@ -18,7 +35,9 @@ def print_header():
     print("=" * 50)
 
 
-def print_summary(data_stats, speaker_stats, session_stats, image_stats):
+def print_summary(
+    data_stats, speaker_stats, session_stats, image_stats, force_regenerate=False
+):
     """
     Print final summary statistics.
 
@@ -27,6 +46,7 @@ def print_summary(data_stats, speaker_stats, session_stats, image_stats):
         speaker_stats: Speaker generation statistics
         session_stats: Session generation statistics
         image_stats: Image processing statistics
+        force_regenerate: Whether force regeneration was used
     """
     print("\n" + "=" * 50)
     print(f"{EMOJIS['check']} GENERATION COMPLETE")
@@ -35,8 +55,13 @@ def print_summary(data_stats, speaker_stats, session_stats, image_stats):
     # Summary statistics
     print(f"{EMOJIS['chart']} SUMMARY STATISTICS:")
     print(f"   • Speakers processed: {data_stats['unique_speakers']}")
+    print(f"   • Speaker profiles generated: {speaker_stats['generated_count']}")
+    if not force_regenerate and image_stats.get("skipped_count", 0) > 0:
+        print(f"   • Speaker profiles skipped: {image_stats.get('skipped_count', 0)}")
     print(f"   • Sessions generated: {session_stats['generated_count']}")
     print(f"   • Images processed: {image_stats['processed_count']}")
+    if image_stats.get("skipped_count", 0) > 0:
+        print(f"   • Images skipped: {image_stats.get('skipped_count', 0)}")
     if image_stats["failed_count"] > 0:
         print(f"   • Images failed: {image_stats['failed_count']}")
 
@@ -89,11 +114,22 @@ def print_summary(data_stats, speaker_stats, session_stats, image_stats):
 
     print(f"\n{EMOJIS['folder']} OUTPUT LOCATION: ./generated_files/")
 
+    if force_regenerate:
+        print(f"\n🔄 Force regeneration was enabled - all files were rebuilt")
+
 
 def main():
     """Main execution function."""
     try:
+        # Parse command line arguments
+        args = parse_arguments()
+        force_regenerate = args.force
+
         print_header()
+
+        if force_regenerate:
+            print("🔄 Force regeneration enabled - all existing files will be rebuilt")
+            print()
 
         # Initialize processors
         data_processor = DataProcessor()
@@ -121,28 +157,52 @@ def main():
         # Step 3: Prepare sessions data
         sessions = data_processor.prepare_sessions_data()
 
-        # Step 4: Generate speaker profiles
-        speaker_stats = speaker_generator.generate_all_speaker_profiles(speakers)
+        # Step 4: Setup LinkedIn login if needed (only if Selenium extractor is available)
+        if (
+            hasattr(image_processor, "linkedin_extractor")
+            and image_processor.linkedin_extractor
+        ):
+            print(f"\n🔐 Setting up LinkedIn authentication...")
+            if not image_processor.setup_linkedin_login():
+                print("❌ LinkedIn login failed. Continuing with basic extraction...")
 
-        # Step 5: Process speaker images
-        image_stats = image_processor.process_all_speaker_images(speakers)
+        # Step 5: Generate speaker profiles
+        speaker_stats = speaker_generator.generate_all_speaker_profiles(
+            speakers, force_regenerate
+        )
 
-        # Step 6: Generate session files
-        session_stats = session_generator.generate_all_session_files(sessions)
+        # Step 6: Process speaker images
+        image_stats = image_processor.process_all_speaker_images(
+            speakers, force_regenerate
+        )
 
-        # Step 7: Get final statistics
+        # Step 7: Generate session files
+        session_stats = session_generator.generate_all_session_files(
+            sessions, force_regenerate
+        )
+
+        # Step 8: Get final statistics
         data_stats = data_processor.get_statistics()
         data_stats["speakers"] = speakers
         data_stats["sessions"] = sessions
 
-        # Step 8: Print summary
-        print_summary(data_stats, speaker_stats, session_stats, image_stats)
+        # Step 9: Print summary
+        print_summary(
+            data_stats, speaker_stats, session_stats, image_stats, force_regenerate
+        )
+
+        # Cleanup
+        image_processor.close()
 
         return 0
 
     except FileNotFoundError as e:
         print(f"\n{EMOJIS['warning']} Error: {str(e)}")
         print("Please ensure the Excel file exists in the data/ directory.")
+        return 1
+
+    except KeyboardInterrupt:
+        print(f"\n\n{EMOJIS['warning']} Process interrupted by user.")
         return 1
 
     except Exception as e:
