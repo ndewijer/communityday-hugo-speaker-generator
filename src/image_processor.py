@@ -52,6 +52,7 @@ class ImageProcessor:
             self.linkedin_extractor = LinkedInSeleniumExtractor(
                 user_data_dir=SELENIUM_USER_DATA_DIR,
                 request_delay=LINKEDIN_REQUEST_DELAY,
+                debug=False,  # Set to True for troubleshooting
             )
             print("   ✓ Selenium LinkedIn extractor available")
         else:
