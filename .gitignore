@@ -16,8 +16,7 @@ generated_files/
 missing_photos.csv
 
 # LinkedIn authentication (sensitive)
-linkedin_cookies.txt
-LINKEDIN_COOKIES
+.selenium/
 
 # IDE
 .vscode/
@@ -29,11 +28,5 @@ LINKEDIN_COOKIES
 .DS_Store
 Thumbs.db
 
-# Debug scripts
-debug_linkedin_html.py
-debug_linkedin.html
-
-# Test scripts
-test_retry_logic_verbose.py
-test_retry_logic.py
-test_linkedin_extractor.py
+# Debug and test scripts
+debug/

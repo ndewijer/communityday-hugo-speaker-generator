@@ -45,13 +45,15 @@ A Python tool to generate Hugo markdown files for AWS Community Day speakers and
 
    **Option A: Basic Installation (Recommended for most users)**
    ```bash
-   pip install -r requirements-basic.txt
+   pip install -r requirements.txt
    ```
 
    **Option B: Enhanced Installation (Better LinkedIn extraction)**
+   For improved LinkedIn image extraction, install Selenium dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements-selenium.txt
    ```
+   The system will guide you through a one-time LinkedIn login setup. See [LINKEDIN_SELENIUM_GUIDE.md](LINKEDIN_SELENIUM_GUIDE.md) for detailed instructions.
 
 3. **Prepare Data**:
    - Place your Excel file in the `data/` directory
@@ -59,10 +61,17 @@ A Python tool to generate Hugo markdown files for AWS Community Day speakers and
 
 ## Usage
 
+### Basic Usage
 Run the generator:
 ```bash
 source venv/bin/activate  # Activate virtual environment
 python main.py
+```
+
+### Force Regeneration
+To rebuild all files (ignore existing files):
+```bash
+python main.py --force
 ```
 
 The tool will:
@@ -193,63 +202,32 @@ Your Excel file should contain these columns:
 
 ### Enhanced LinkedIn Image Extraction
 
-The system now includes a robust LinkedIn profile image extractor with multiple strategies:
+The system includes a modern Selenium-based LinkedIn profile image extractor:
 
-- **Multiple Extraction Methods**: Uses requests + BeautifulSoup, rotating user agents, and optional Selenium WebDriver
-- **Advanced HTML Parsing**: Extracts images from JSON-LD data, meta tags, and JavaScript content
-- **Improved Success Rates**: Significantly better than the previous simple approach
-- **Automatic Fallback**: Still uses default images when extraction fails
+- **One-time Interactive Login**: User-friendly browser-based authentication
+- **Persistent Sessions**: Login once, use forever (until session expires)
+- **Direct DOM Access**: More reliable than regex-based extraction
+- **Rate Limiting**: Respects LinkedIn's usage policies
+- **Smart Skip Logic**: Avoids re-processing existing files
+- **Retry Queue**: Automatically retries previous failures
 
-#### Setup Enhanced Extractor
+#### Key Features
 
-For improved LinkedIn image extraction, install additional dependencies:
+- **~90% Success Rate**: Direct DOM access vs regex patterns
+- **Automatic Fallback**: Uses basic extraction if Selenium unavailable
+- **Skip-if-Exists**: Only processes new or failed speakers
+- **Force Regeneration**: `--force` flag to rebuild everything
+- **Missing Photos Retry**: Automatically retries speakers from missing_photos.csv
 
-```bash
-# Install enhanced dependencies
-pip install selenium beautifulsoup4 lxml fake-useragent
-
-# Optional: Install ChromeDriver for Selenium support
-# macOS: brew install chromedriver
-# Ubuntu: sudo apt-get install chromium-chromedriver
-
-# Run setup script
-python setup_enhanced_extractor.py
-```
-
-#### Testing the Extractor
-
-Test the LinkedIn extractor with sample URLs:
-
-```bash
-python test_linkedin_extractor.py
-```
-
-For detailed documentation on the enhanced LinkedIn extractor, see [LINKEDIN_EXTRACTOR_README.md](LINKEDIN_EXTRACTOR_README.md).
-
-#### LinkedIn Authentication (Optional)
-
-For significantly improved LinkedIn extraction success rates (70-90% vs ~5%), you can provide LinkedIn session cookies:
-
-**Quick Setup:**
-1. Log into LinkedIn in your browser
-2. Extract session cookies (see [LINKEDIN_COOKIES_GUIDE.md](LINKEDIN_COOKIES_GUIDE.md) for detailed instructions)
-3. Set cookies via environment variable:
-   ```bash
-   export LINKEDIN_COOKIES="li_at=VALUE1; JSESSIONID=VALUE2; bcookie=VALUE3..."
-   ```
-4. Or create a `linkedin_cookies.txt` file in the project root
-
-**Security Note:** Keep cookies private and refresh them periodically (they expire every 2-4 weeks).
-
-For complete cookie extraction instructions, see [LINKEDIN_COOKIES_GUIDE.md](LINKEDIN_COOKIES_GUIDE.md).
+For complete setup and usage instructions, see [LINKEDIN_SELENIUM_GUIDE.md](LINKEDIN_SELENIUM_GUIDE.md).
 
 ### Image Processing Notes
 
-- **LinkedIn URL Normalization**: The system automatically normalizes LinkedIn URLs that are missing the `https://` protocol scheme
-- **Enhanced Extraction**: New multi-strategy approach significantly improves LinkedIn image extraction success rates
-- **Anti-scraping Resilience**: Multiple fallback strategies help overcome LinkedIn's anti-scraping measures
-- **Custom Photos**: For guaranteed success, provide custom photo URLs in the Excel data
-- **Fallback Images**: All speakers get a default image if all extraction methods fail, ensuring no broken images
+- **LinkedIn URL Normalization**: Automatically normalizes LinkedIn URLs missing `https://` protocol
+- **Smart Skip Logic**: Skips speakers if both profile and image exist AND not in missing_photos.csv
+- **Custom Photos**: Custom photo URLs take priority over LinkedIn extraction
+- **Fallback Images**: Default image used when all extraction methods fail
+- **Retry System**: Previous LinkedIn failures are automatically retried on next run
 
 ## Contributing
 

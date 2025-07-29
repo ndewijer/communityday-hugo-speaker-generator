@@ -42,9 +42,9 @@ IMAGE_SIZE = (400, 400)  # Square image dimensions
 IMAGE_QUALITY = 85
 REQUEST_TIMEOUT = 10  # seconds
 
-# LinkedIn authentication settings
-LINKEDIN_SESSION_COOKIES = None  # Set to cookie string or file path
-LINKEDIN_COOKIES_FILE = "linkedin_cookies.txt"  # Optional cookie file
+# LinkedIn Selenium Configuration
+SELENIUM_USER_DATA_DIR = ".selenium"  # Directory for browser session data
+LINKEDIN_REQUEST_DELAY = 2.5  # Delay between LinkedIn requests (seconds)
 
 # Console output emojis
 EMOJIS = {

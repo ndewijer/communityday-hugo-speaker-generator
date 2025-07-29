@@ -1,7 +1,8 @@
 """
 Image processing module for Hugo Speaker Generator.
 
-Handles downloading, processing, and saving speaker images.
+Handles downloading, processing, and saving speaker images with enhanced
+LinkedIn extraction using Selenium and smart skip logic.
 """
 
 import requests
@@ -10,7 +11,6 @@ from PIL import Image
 from typing import Dict, Optional
 import csv
 import logging
-import re
 from .config import (
     DEFAULT_SPEAKER_IMAGE,
     OUTPUT_DIR,
@@ -18,87 +18,53 @@ from .config import (
     IMAGE_SIZE,
     IMAGE_QUALITY,
     REQUEST_TIMEOUT,
-    LINKEDIN_SESSION_COOKIES,
-    LINKEDIN_COOKIES_FILE,
+    SELENIUM_USER_DATA_DIR,
+    LINKEDIN_REQUEST_DELAY,
 )
 
-# Try to import the enhanced LinkedIn extractor, fall back to basic extraction if not available
+# Try to import the Selenium LinkedIn extractor
 try:
-    from .linkedin_extractor import LinkedInImageExtractor
+    from .linkedin_selenium_extractor import LinkedInSeleniumExtractor
 
-    ENHANCED_EXTRACTOR_AVAILABLE = True
+    SELENIUM_AVAILABLE = True
 except ImportError:
-    ENHANCED_EXTRACTOR_AVAILABLE = False
-    LinkedInImageExtractor = None
+    SELENIUM_AVAILABLE = False
+    LinkedInSeleniumExtractor = None
 
 
 class ImageProcessor:
-    """Handles speaker image downloading and processing."""
+    """Handles speaker image downloading and processing with enhanced LinkedIn support."""
 
     def __init__(self):
         """Initialize ImageProcessor with empty statistics."""
         self.missing_photos = []
         self.processed_count = 0
         self.failed_count = 0
+        self.skipped_count = 0
         self.retry_queue = []  # Queue for speakers that failed in previous runs
+        self.missing_photos_emails = set()  # Cache of emails in missing_photos.csv
 
         # Load previous failures for retry
         self._load_previous_failures()
 
-        # Initialize enhanced LinkedIn extractor if available
-        if ENHANCED_EXTRACTOR_AVAILABLE:
-            # Determine cookie source
-            cookies = self._get_linkedin_cookies()
-
-            self.linkedin_extractor = LinkedInImageExtractor(
-                request_timeout=REQUEST_TIMEOUT, retry_attempts=3, cookies=cookies
+        # Initialize LinkedIn extractor if available
+        if SELENIUM_AVAILABLE and LinkedInSeleniumExtractor.is_selenium_available():
+            self.linkedin_extractor = LinkedInSeleniumExtractor(
+                user_data_dir=SELENIUM_USER_DATA_DIR,
+                request_delay=LINKEDIN_REQUEST_DELAY,
             )
-
-            if cookies:
-                if self.linkedin_extractor.is_authenticated():
-                    print("   ✓ Enhanced LinkedIn extractor loaded with authentication")
-                else:
-                    print(
-                        "   ⚠️  Enhanced LinkedIn extractor loaded but authentication failed"
-                    )
-            else:
-                print("   ✓ Enhanced LinkedIn extractor loaded (no authentication)")
+            print("   ✓ Selenium LinkedIn extractor available")
         else:
             self.linkedin_extractor = None
-            print(
-                "   ⚠️  Using basic LinkedIn extraction "
-                "(install enhanced dependencies for better results)"
-            )
+            if not SELENIUM_AVAILABLE:
+                print("   ⚠️  Selenium LinkedIn extractor not available")
+                print("   💡 Install with: pip install -r requirements-selenium.txt")
+            else:
+                print("   ⚠️  Selenium not installed, using basic extraction")
 
-        # Setup logging - set to INFO level to reduce noise from LinkedIn extractor
+        # Setup logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-
-        # Set LinkedIn extractor logger to INFO level to suppress debug messages
-        linkedin_logger = logging.getLogger("src.linkedin_extractor")
-        linkedin_logger.setLevel(logging.INFO)
-
-    def _get_linkedin_cookies(self) -> Optional[str]:
-        """
-        Get LinkedIn cookies from configuration or environment.
-
-        Returns:
-            Cookie string or file path, None if not configured
-        """
-        # Check environment variable first
-        cookies = os.environ.get("LINKEDIN_COOKIES")
-        if cookies:
-            return cookies
-
-        # Check configuration
-        if LINKEDIN_SESSION_COOKIES:
-            return LINKEDIN_SESSION_COOKIES
-
-        # Check for cookies file
-        if os.path.exists(LINKEDIN_COOKIES_FILE):
-            return LINKEDIN_COOKIES_FILE
-
-        return None
 
     def _load_previous_failures(self):
         """Load previous failures from missing_photos.csv for retry."""
@@ -109,13 +75,17 @@ class ImageProcessor:
             with open(MISSING_PHOTOS_CSV, "r", newline="", encoding="utf-8") as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
+                    email = row.get("Email", "")
+                    if email:
+                        self.missing_photos_emails.add(email)
+
                     # Only queue LinkedIn extraction failures for retry
                     if row.get(
                         "Reason"
                     ) == "LinkedIn image extraction failed" and row.get("LinkedIn URL"):
                         self.retry_queue.append(
                             {
-                                "email": row.get("Email", ""),
+                                "email": email,
                                 "name": row.get("Speaker Name", ""),
                                 "linkedin_url": row.get("LinkedIn URL", ""),
                             }
@@ -128,6 +98,63 @@ class ImageProcessor:
 
         except Exception as e:
             print(f"   ⚠️  Could not load previous failures: {str(e)}")
+
+    def should_skip_speaker(
+        self, speaker_data: Dict, force_regenerate: bool = False
+    ) -> bool:
+        """
+        Determine if speaker processing should be skipped.
+
+        Args:
+            speaker_data: Dictionary containing speaker information
+            force_regenerate: If True, never skip
+
+        Returns:
+            True if should skip, False if should process
+        """
+        if force_regenerate:
+            return False
+
+        speaker_slug = speaker_data["slug"]
+        email = speaker_data.get("email", "")
+
+        # Check if files exist
+        profile_path = os.path.join(
+            OUTPUT_DIR, "content", "speakers", speaker_slug, "index.md"
+        )
+        image_path = os.path.join(
+            OUTPUT_DIR, "content", "speakers", speaker_slug, "img", "photo.jpg"
+        )
+
+        profile_exists = os.path.exists(profile_path)
+        image_exists = os.path.exists(image_path)
+
+        # Check if speaker is in missing_photos.csv (needs retry)
+        is_in_missing_photos = email in self.missing_photos_emails
+
+        # Only skip if both files exist AND not in missing photos
+        return profile_exists and image_exists and not is_in_missing_photos
+
+    def setup_linkedin_login(self) -> bool:
+        """
+        Setup LinkedIn login if using Selenium extractor.
+
+        Returns:
+            True if login successful or not needed, False if failed
+        """
+        if not self.linkedin_extractor:
+            return True  # No LinkedIn extractor, so no login needed
+
+        # Check if we already have a session by looking for session files
+        session_dir = os.path.abspath(self.linkedin_extractor.user_data_dir)
+        session_exists = os.path.exists(session_dir) and os.listdir(session_dir)
+
+        if session_exists:
+            print("   ✅ Existing LinkedIn session found")
+            return True
+        else:
+            print("   🔐 No LinkedIn session found, login required")
+            return self.linkedin_extractor.login_to_linkedin()
 
     def process_speaker_image(
         self, speaker_data: Dict, retry_mode: bool = False
@@ -203,6 +230,128 @@ class ImageProcessor:
                 "Default image copy failed",
             )
             return "failed"
+
+    def _extract_linkedin_image_url(self, linkedin_url: str) -> Optional[str]:
+        """
+        Extract profile image URL from LinkedIn profile.
+
+        Uses Selenium extraction if available, falls back to basic method.
+
+        Args:
+            linkedin_url: LinkedIn profile URL
+
+        Returns:
+            Image URL if found, None otherwise
+        """
+        if self.linkedin_extractor:
+            # Use Selenium LinkedIn extractor
+            try:
+                username = LinkedInSeleniumExtractor.extract_username_from_url(
+                    linkedin_url
+                )
+                if username:
+                    return self.linkedin_extractor.extract_single_profile_image_url(
+                        username
+                    )
+                else:
+                    print(f"   ⚠️  Could not extract username from {linkedin_url}")
+                    return None
+            except Exception as e:
+                self.logger.error(
+                    f"Selenium LinkedIn extraction failed for {linkedin_url}: {str(e)}"
+                )
+                return None
+        else:
+            # Fall back to basic LinkedIn extraction (original method)
+            return self._basic_linkedin_extraction(linkedin_url)
+
+    def _basic_linkedin_extraction(self, linkedin_url: str) -> Optional[str]:
+        """
+        Basic LinkedIn image extraction using simple regex patterns.
+
+        This is the fallback method when Selenium is not available.
+
+        Args:
+            linkedin_url: LinkedIn profile URL
+
+        Returns:
+            Image URL if found, None otherwise
+        """
+        try:
+            # Normalize the LinkedIn URL first
+            normalized_url = self._normalize_linkedin_url(linkedin_url)
+
+            # Simple approach - try to get the page and extract image
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            response = requests.get(
+                normalized_url, headers=headers, timeout=REQUEST_TIMEOUT
+            )
+
+            if response.status_code == 200:
+                # Look for profile image patterns in the HTML
+                import re
+
+                content = response.text
+
+                # Look for common LinkedIn image patterns
+                patterns = [
+                    r'<img[^>]+class="[^"]*profile-photo[^"]*"[^>]+src="([^"]+)"',
+                    r'<img[^>]+src="([^"]+)"[^>]+class="[^"]*profile-photo[^"]*"',
+                    r'"profilePicture":"([^"]+)"',
+                ]
+
+                for pattern in patterns:
+                    match = re.search(pattern, content)
+                    if match:
+                        return match.group(1)
+
+            return None
+
+        except Exception as e:
+            print(
+                f"   ⚠️  Failed to extract LinkedIn image from {linkedin_url}: {str(e)}"
+            )
+            return None
+
+    def _normalize_linkedin_url(self, linkedin_url: str) -> str:
+        """
+        Normalize LinkedIn URL to ensure it has proper scheme.
+
+        Args:
+            linkedin_url: Raw LinkedIn URL
+
+        Returns:
+            Normalized LinkedIn URL with https:// scheme
+        """
+        if not linkedin_url:
+            return linkedin_url
+
+        # Remove any leading/trailing whitespace
+        url = linkedin_url.strip()
+
+        # If URL already has a scheme, return as-is
+        if url.startswith(("http://", "https://")):
+            return url
+
+        # If URL starts with linkedin.com or www.linkedin.com, add https://
+        if url.startswith(("linkedin.com", "www.linkedin.com")):
+            return f"https://{url}"
+
+        # If it looks like a LinkedIn profile path, construct full URL
+        if "/in/" in url and not url.startswith("http"):
+            # Handle cases like "linkedin.com/in/profile" or "www.linkedin.com/in/profile"
+            if url.startswith("linkedin.com"):
+                return f"https://{url}"
+            elif url.startswith("www.linkedin.com"):
+                return f"https://{url}"
+            else:
+                # Assume it's just the path part
+                return f'https://www.linkedin.com{url if url.startswith("/") else "/" + url}'
+
+        # If we can't determine the format, assume it needs https://
+        return f"https://{url}" if not url.startswith("http") else url
 
     def _download_and_process_image(self, url: str, output_path: str) -> bool:
         """
@@ -292,118 +441,6 @@ class ImageProcessor:
             print(f"   ⚠️  Failed to process image {input_path}: {str(e)}")
             return False
 
-    def _extract_linkedin_image_url(self, linkedin_url: str) -> Optional[str]:
-        """
-        Extract profile image URL from LinkedIn profile.
-
-        Uses enhanced extraction if available, falls back to basic method.
-
-        Args:
-            linkedin_url: LinkedIn profile URL
-
-        Returns:
-            Image URL if found, None otherwise
-        """
-        if ENHANCED_EXTRACTOR_AVAILABLE and self.linkedin_extractor:
-            # Use enhanced LinkedIn extractor
-            try:
-                return self.linkedin_extractor.extract_profile_image_url(linkedin_url)
-            except Exception as e:
-                self.logger.error(
-                    f"Enhanced LinkedIn extraction failed for {linkedin_url}: {str(e)}"
-                )
-                return None
-        else:
-            # Fall back to basic LinkedIn extraction
-            return self._basic_linkedin_extraction(linkedin_url)
-
-    def _basic_linkedin_extraction(self, linkedin_url: str) -> Optional[str]:
-        """
-        Basic LinkedIn image extraction using simple regex patterns.
-
-        This is the original method for backward compatibility.
-
-        Args:
-            linkedin_url: LinkedIn profile URL
-
-        Returns:
-            Image URL if found, None otherwise
-        """
-        try:
-            # Normalize the LinkedIn URL first
-            normalized_url = self._normalize_linkedin_url(linkedin_url)
-
-            # Simple approach - try to get the page and extract image
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
-            response = requests.get(
-                normalized_url, headers=headers, timeout=REQUEST_TIMEOUT
-            )
-
-            if response.status_code == 200:
-                # Look for profile image patterns in the HTML
-                # This is a basic implementation and may not work reliably
-                content = response.text
-
-                # Look for common LinkedIn image patterns
-                patterns = [
-                    r'<img[^>]+class="[^"]*profile-photo[^"]*"[^>]+src="([^"]+)"',
-                    r'<img[^>]+src="([^"]+)"[^>]+class="[^"]*profile-photo[^"]*"',
-                    r'"profilePicture":"([^"]+)"',
-                ]
-
-                for pattern in patterns:
-                    match = re.search(pattern, content)
-                    if match:
-                        return match.group(1)
-
-            return None
-
-        except Exception as e:
-            print(
-                f"   ⚠️  Failed to extract LinkedIn image from {linkedin_url}: {str(e)}"
-            )
-            return None
-
-    def _normalize_linkedin_url(self, linkedin_url: str) -> str:
-        """
-        Normalize LinkedIn URL to ensure it has proper scheme.
-
-        Args:
-            linkedin_url: Raw LinkedIn URL
-
-        Returns:
-            Normalized LinkedIn URL with https:// scheme
-        """
-        if not linkedin_url:
-            return linkedin_url
-
-        # Remove any leading/trailing whitespace
-        url = linkedin_url.strip()
-
-        # If URL already has a scheme, return as-is
-        if url.startswith(("http://", "https://")):
-            return url
-
-        # If URL starts with linkedin.com or www.linkedin.com, add https://
-        if url.startswith(("linkedin.com", "www.linkedin.com")):
-            return f"https://{url}"
-
-        # If it looks like a LinkedIn profile path, construct full URL
-        if "/in/" in url and not url.startswith("http"):
-            # Handle cases like "linkedin.com/in/profile" or "www.linkedin.com/in/profile"
-            if url.startswith("linkedin.com"):
-                return f"https://{url}"
-            elif url.startswith("www.linkedin.com"):
-                return f"https://{url}"
-            else:
-                # Assume it's just the path part
-                return f'https://www.linkedin.com{url if url.startswith("/") else "/" + url}'
-
-        # If we can't determine the format, assume it needs https://
-        return f"https://{url}" if not url.startswith("http") else url
-
     def _copy_default_image(self, output_path: str) -> bool:
         """
         Copy default unknown image to output path.
@@ -449,12 +486,22 @@ class ImageProcessor:
 
     def save_missing_photos_report(self) -> bool:
         """
-        Save missing photos report to CSV file.
+        Save missing photos report to CSV file, or delete if empty.
 
         Returns:
             True if successful, False otherwise
         """
         if not self.missing_photos:
+            # Delete existing missing_photos.csv if it exists and no new issues
+            if os.path.exists(MISSING_PHOTOS_CSV):
+                try:
+                    os.remove(MISSING_PHOTOS_CSV)
+                    print(
+                        f"   ✓ Removed empty {MISSING_PHOTOS_CSV} "
+                        "(all images processed successfully)"
+                    )
+                except Exception as e:
+                    print(f"   ⚠️  Could not remove {MISSING_PHOTOS_CSV}: {str(e)}")
             return True
 
         try:
@@ -483,30 +530,34 @@ class ImageProcessor:
         return {
             "processed_count": self.processed_count,
             "failed_count": self.failed_count,
+            "skipped_count": self.skipped_count,
             "missing_photos_count": len(self.missing_photos),
             "missing_photos": self.missing_photos,
         }
 
-    def process_all_speaker_images(self, speakers: Dict[str, Dict]) -> Dict:
+    def process_all_speaker_images(
+        self, speakers: Dict[str, Dict], force_regenerate: bool = False
+    ) -> Dict:
         """
-        Process images for all speakers using unified flow.
-
-        Prioritizes retry attempts for speakers that failed in previous runs,
-        then processes remaining speakers. Prevents double processing.
+        Process images for all speakers with smart skip logic.
 
         Args:
             speakers: Dictionary of speaker data
+            force_regenerate: If True, regenerate all images
 
         Returns:
             Processing statistics
         """
         print(f"\n🖼️  Processing speaker images...")
 
+        if force_regenerate:
+            print("   🔄 Force regeneration enabled - rebuilding all images")
+
         processed_speakers = set()
         retry_successes = 0
 
         # Phase 1: Process retry queue (high priority)
-        if self.retry_queue:
+        if self.retry_queue and not force_regenerate:
             print(
                 f"   🔄 Retrying {len(self.retry_queue)} previous LinkedIn failures..."
             )
@@ -536,7 +587,7 @@ class ImageProcessor:
                     f"   🎉 Successfully recovered {retry_successes} images from previous failures!"
                 )
 
-        # Phase 2: Process remaining speakers
+        # Phase 2: Process remaining speakers with skip logic
         remaining_speakers = [
             (email, data)
             for email, data in speakers.items()
@@ -549,13 +600,27 @@ class ImageProcessor:
         for i, (email, speaker_data) in enumerate(remaining_speakers, 1):
             speaker_name = speaker_data["name"]
             total_remaining = len(remaining_speakers)
-            print(f"   [{i}/{total_remaining}] {speaker_name}")
 
-            # Add email to speaker data for logging
+            # Add email to speaker data for skip logic
             speaker_data_with_email = speaker_data.copy()
             speaker_data_with_email["email"] = email
 
-            self.process_speaker_image(speaker_data_with_email)
+            # Check if we should skip this speaker
+            if self.should_skip_speaker(speaker_data_with_email, force_regenerate):
+                print(
+                    f"   [{i}/{total_remaining}] ✓ Skipped: {speaker_name} (already exists)"
+                )
+                self.skipped_count += 1
+            else:
+                if force_regenerate:
+                    print(
+                        f"   [{i}/{total_remaining}] 🔄 Force regenerating: {speaker_name}"
+                    )
+                else:
+                    print(f"   [{i}/{total_remaining}] 📝 Processing: {speaker_name}")
+
+                self.process_speaker_image(speaker_data_with_email)
+
             processed_speakers.add(email)
 
         # Save missing photos report
@@ -563,6 +628,8 @@ class ImageProcessor:
 
         # Final statistics
         print(f"   ✓ Total processed: {len(processed_speakers)}")
+        if self.skipped_count > 0:
+            print(f"   ✓ Skipped: {self.skipped_count}")
         print(f"   ✓ Downloaded: {self.processed_count}")
         if retry_successes > 0:
             print(f"   🔄 Retry successes: {retry_successes}")
@@ -573,17 +640,9 @@ class ImageProcessor:
                 f"   ⚠️  Issues logged: {len(self.missing_photos)} (see {MISSING_PHOTOS_CSV})"
             )
 
-        # Cleanup resources
-        if ENHANCED_EXTRACTOR_AVAILABLE and self.linkedin_extractor:
-            self.linkedin_extractor.close()
-
         return self.get_statistics()
 
     def close(self):
         """Close and cleanup resources."""
-        if (
-            ENHANCED_EXTRACTOR_AVAILABLE
-            and hasattr(self, "linkedin_extractor")
-            and self.linkedin_extractor
-        ):
+        if self.linkedin_extractor:
             self.linkedin_extractor.close()

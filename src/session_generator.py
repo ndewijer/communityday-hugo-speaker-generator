@@ -147,23 +147,49 @@ class SessionGenerator:
 
         return markdown
 
-    def generate_all_session_files(self, sessions: List[Dict]) -> Dict:
+    def should_skip_session_file(
+        self, filename: str, force_regenerate: bool = False
+    ) -> bool:
         """
-        Generate files for all sessions.
+        Determine if session file generation should be skipped.
+
+        Args:
+            filename: Session filename
+            force_regenerate: If True, never skip
+
+        Returns:
+            True if should skip, False if should generate
+        """
+        if force_regenerate:
+            return False
+
+        session_path = os.path.join(OUTPUT_DIR, "content", "sessions", filename)
+        return os.path.exists(session_path)
+
+    def generate_all_session_files(
+        self, sessions: List[Dict], force_regenerate: bool = False
+    ) -> Dict:
+        """
+        Generate files for all sessions with smart skip logic.
 
         Args:
             sessions: List of session data
+            force_regenerate: If True, regenerate all session files
 
         Returns:
             Generation statistics
         """
         print(f"\n📋 Generating session files...")
 
+        if force_regenerate:
+            print("   🔄 Force regeneration enabled - rebuilding all session files")
+
         # Generate filenames first
         session_filenames = self.generate_session_filenames(sessions)
 
         total_sessions = len(sessions)
         current = 0
+        skipped_count = 0
 
         for session in sessions:
             current += 1
@@ -171,11 +197,29 @@ class SessionGenerator:
             session_title = session.get("title", "Unknown Session")
             filename = session_filenames.get(session_id, f"unknown-{current}.md")
 
-            print_progress(current, total_sessions, f"{filename} - {session_title}")
+            # Check if we should skip this session file
+            if self.should_skip_session_file(filename, force_regenerate):
+                print_progress(
+                    current, total_sessions, f"✓ Skipped: {filename} (already exists)"
+                )
+                skipped_count += 1
+            else:
+                if force_regenerate:
+                    print_progress(
+                        current,
+                        total_sessions,
+                        f"🔄 Force regenerating: {filename} - {session_title}",
+                    )
+                else:
+                    print_progress(
+                        current, total_sessions, f"{filename} - {session_title}"
+                    )
 
-            self.generate_session_file(session, filename)
+                self.generate_session_file(session, filename)
 
         print(f"   ✓ Generated {self.generated_count} session files")
+        if skipped_count > 0:
+            print(f"   ✓ Skipped: {skipped_count}")
         if self.failed_count > 0:
             print(f"   ⚠️  Failed: {self.failed_count}")
 
