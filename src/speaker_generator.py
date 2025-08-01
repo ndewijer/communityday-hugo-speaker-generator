@@ -6,8 +6,9 @@ Handles creation of speaker markdown files and directory structure.
 
 import os
 from typing import Dict
+
 from .config import OUTPUT_DIR
-from .utils import format_linkedin_field, format_bio_content, print_progress
+from .utils import format_bio_content, format_linkedin_field, print_progress
 
 
 class SpeakerGenerator:
@@ -54,9 +55,7 @@ class SpeakerGenerator:
 
         except Exception as e:
             speaker_name = speaker_data.get("name", "Unknown")
-            print(
-                f"   ⚠️  Failed to generate speaker profile for {speaker_name}: {str(e)}"
-            )
+            print(f"   ⚠️  Failed to generate speaker profile for {speaker_name}: {str(e)}")
             self.failed_count += 1
             return False
 
@@ -110,9 +109,7 @@ class SpeakerGenerator:
             return False
 
         speaker_slug = speaker_data["slug"]
-        profile_path = os.path.join(
-            OUTPUT_DIR, "content", "speakers", speaker_slug, "index.md"
-        )
+        profile_path = os.path.join(OUTPUT_DIR, "content", "speakers", speaker_slug, "index.md")
 
         return os.path.exists(profile_path)
 

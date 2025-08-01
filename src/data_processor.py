@@ -4,11 +4,13 @@ Data processing module for Hugo Speaker Generator.
 Handles Excel file loading, validation, and speaker deduplication.
 """
 
-import pandas as pd
-from typing import Dict, List
 import os
-from .config import EXCEL_FILE_PATH, SPEAKER_FIELD_MAPPING, SESSION_FIELD_MAPPING
-from .utils import safe_get_field, generate_unique_speaker_slug, validate_session_id
+from typing import Dict, List
+
+import pandas as pd
+
+from .config import EXCEL_FILE_PATH, SESSION_FIELD_MAPPING, SPEAKER_FIELD_MAPPING
+from .utils import generate_unique_speaker_slug, safe_get_field, validate_session_id
 
 
 class DataProcessor:
@@ -52,9 +54,7 @@ class DataProcessor:
         if self.df is None:
             return ["No data loaded"]
 
-        required_columns = set(SPEAKER_FIELD_MAPPING.values()) | set(
-            SESSION_FIELD_MAPPING.values()
-        )
+        required_columns = set(SPEAKER_FIELD_MAPPING.values()) | set(SESSION_FIELD_MAPPING.values())
         required_columns.add("Email Address")  # Unique identifier
 
         existing_columns = set(self.df.columns)

@@ -8,14 +8,15 @@ with persistent session management and one-time interactive login.
 import os
 import sys
 import time
-import requests
 from typing import List, Optional
+
+import requests
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.webdriver.support.ui import WebDriverWait
 from tqdm import tqdm
 
 
@@ -48,12 +49,8 @@ class LinkedInSeleniumExtractor:
         Returns:
             True if login successful, False otherwise
         """
-        print(
-            "🚀 We'll open LinkedIn for you to log in. This is a one-time process. 🔐"
-        )
-        print(
-            "   💡 A Chrome browser window will open. Please log in and then return here."
-        )
+        print("🚀 We'll open LinkedIn for you to log in. This is a one-time process. 🔐")
+        print("   💡 A Chrome browser window will open. Please log in and then return here.")
         input("Press Enter to continue... 😊")
 
         driver = None
@@ -73,16 +70,12 @@ class LinkedInSeleniumExtractor:
             print("   🔐 Complete any 2FA or security challenges if prompted.")
             print("   ⏳ Take your time - the browser will stay open.")
 
-            input(
-                "\n✅ Press Enter here AFTER you have successfully logged in to LinkedIn... 😊"
-            )
+            input("\n✅ Press Enter here AFTER you have successfully logged in to LinkedIn... 😊")
 
             print("   🔍 Verifying your login...")
             # Verify login success
             if self._verify_login_success(driver):
-                print(
-                    "✅ Login verified successfully! Credentials saved for future use. 🎉"
-                )
+                print("✅ Login verified successfully! Credentials saved for future use. 🎉")
                 driver.quit()
                 self.driver = None
                 return True
@@ -202,9 +195,7 @@ class LinkedInSeleniumExtractor:
 
             # Only show debug messages when debug mode is enabled
             if self.debug:
-                pid = (
-                    driver.service.process.pid if driver.service.process else "unknown"
-                )
+                pid = driver.service.process.pid if driver.service.process else "unknown"
                 print(f"   ✅ Chrome driver created successfully (PID: {pid})")
 
             # Additional setup for stability
@@ -229,9 +220,7 @@ class LinkedInSeleniumExtractor:
             elif "chrome" in error_msg.lower():
                 print("💡 Chrome browser not found. Please install Google Chrome.")
             elif "permission" in error_msg.lower():
-                print(
-                    "💡 Permission denied. Try running with sudo or check file permissions."
-                )
+                print("💡 Permission denied. Try running with sudo or check file permissions.")
             else:
                 print("💡 Try these troubleshooting steps:")
                 print("   1. Update Chrome browser to latest version")
@@ -281,9 +270,7 @@ class LinkedInSeleniumExtractor:
 
             for username in tqdm(usernames, desc="Getting profile pictures"):
                 try:
-                    success = self._download_single_profile_picture(
-                        driver, username, output_folder
-                    )
+                    success = self._download_single_profile_picture(driver, username, output_folder)
                     if success:
                         stats["success"] += 1
                     else:
@@ -293,9 +280,7 @@ class LinkedInSeleniumExtractor:
                     time.sleep(self.request_delay)
 
                 except Exception as e:
-                    error_msg = (
-                        f"Error getting profile picture for {username}: {str(e)}"
-                    )
+                    error_msg = f"Error getting profile picture for {username}: {str(e)}"
                     print(f"   ⚠️  {error_msg}")
                     stats["errors"].append(error_msg)
                     stats["failed"] += 1
@@ -307,9 +292,7 @@ class LinkedInSeleniumExtractor:
                 self.driver.quit()
                 self.driver = None
 
-    def _download_single_profile_picture(
-        self, driver, username: str, output_folder: str
-    ) -> bool:
+    def _download_single_profile_picture(self, driver, username: str, output_folder: str) -> bool:
         """
         Download profile picture for a single username.
 

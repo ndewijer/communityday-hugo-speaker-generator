@@ -164,12 +164,7 @@ def safe_get_field(row: Dict, field_name: str, default: str = "") -> str:
     value = row.get(field_name, default)
 
     # Handle various empty value types
-    if (
-        value is None
-        or value == ""
-        or str(value).strip() == ""
-        or str(value).lower() == "nan"
-    ):
+    if value is None or value == "" or str(value).strip() == "" or str(value).lower() == "nan":
         return default
 
     return str(value).strip()
