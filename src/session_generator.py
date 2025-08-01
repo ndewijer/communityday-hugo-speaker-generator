@@ -6,8 +6,9 @@ Handles creation of session markdown files with proper filename generation.
 
 import os
 from typing import Dict, List
+
 from .config import OUTPUT_DIR
-from .utils import extract_session_level, process_multiple_durations, print_progress
+from .utils import extract_session_level, print_progress, process_multiple_durations
 
 
 class SessionGenerator:
@@ -147,9 +148,7 @@ class SessionGenerator:
 
         return markdown
 
-    def should_skip_session_file(
-        self, filename: str, force_regenerate: bool = False
-    ) -> bool:
+    def should_skip_session_file(self, filename: str, force_regenerate: bool = False) -> bool:
         """
         Determine if session file generation should be skipped.
 
@@ -199,9 +198,7 @@ class SessionGenerator:
 
             # Check if we should skip this session file
             if self.should_skip_session_file(filename, force_regenerate):
-                print_progress(
-                    current, total_sessions, f"✓ Skipped: {filename} (already exists)"
-                )
+                print_progress(current, total_sessions, f"✓ Skipped: {filename} (already exists)")
                 skipped_count += 1
             else:
                 if force_regenerate:
@@ -211,9 +208,7 @@ class SessionGenerator:
                         f"🔄 Force regenerating: {filename} - {session_title}",
                     )
                 else:
-                    print_progress(
-                        current, total_sessions, f"{filename} - {session_title}"
-                    )
+                    print_progress(current, total_sessions, f"{filename} - {session_title}")
 
                 self.generate_session_file(session, filename)
 

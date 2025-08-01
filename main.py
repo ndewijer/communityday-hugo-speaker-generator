@@ -4,21 +4,21 @@ Main entry point for Hugo Speaker Generator.
 Orchestrates the complete generation process from Excel data to Hugo markdown files.
 """
 
-import sys
 import argparse
-from src.data_processor import DataProcessor
-from src.speaker_generator import SpeakerGenerator
-from src.session_generator import SessionGenerator
-from src.image_processor import ImageProcessor
+import sys
+
 from src.config import EMOJIS
+from src.data_processor import DataProcessor
+from src.image_processor import ImageProcessor
+from src.session_generator import SessionGenerator
+from src.speaker_generator import SpeakerGenerator
 
 
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description=(
-            "Hugo Speaker Generator - Generate speaker profiles and "
-            "session files from Excel data"
+            "Hugo Speaker Generator - Generate speaker profiles and session files from Excel data"
         )
     )
     parser.add_argument(
@@ -35,9 +35,7 @@ def print_header():
     print("=" * 50)
 
 
-def print_summary(
-    data_stats, speaker_stats, session_stats, image_stats, force_regenerate=False
-):
+def print_summary(data_stats, speaker_stats, session_stats, image_stats, force_regenerate=False):
     """
     Print final summary statistics.
 
@@ -144,9 +142,7 @@ def main():
         # Validate required columns
         missing_columns = data_processor.validate_required_columns()
         if missing_columns:
-            print(
-                f"   {EMOJIS['warning']} Missing required columns: {', '.join(missing_columns)}"
-            )
+            print(f"   {EMOJIS['warning']} Missing required columns: {', '.join(missing_columns)}")
             print("   Please check your Excel file and try again.")
             return 1
 
@@ -158,28 +154,19 @@ def main():
         sessions = data_processor.prepare_sessions_data()
 
         # Step 4: Setup LinkedIn login if needed (only if Selenium extractor is available)
-        if (
-            hasattr(image_processor, "linkedin_extractor")
-            and image_processor.linkedin_extractor
-        ):
+        if hasattr(image_processor, "linkedin_extractor") and image_processor.linkedin_extractor:
             print(f"\n🔐 Setting up LinkedIn authentication...")
             if not image_processor.setup_linkedin_login():
                 print("❌ LinkedIn login failed. Continuing with basic extraction...")
 
         # Step 5: Generate speaker profiles
-        speaker_stats = speaker_generator.generate_all_speaker_profiles(
-            speakers, force_regenerate
-        )
+        speaker_stats = speaker_generator.generate_all_speaker_profiles(speakers, force_regenerate)
 
         # Step 6: Process speaker images
-        image_stats = image_processor.process_all_speaker_images(
-            speakers, force_regenerate
-        )
+        image_stats = image_processor.process_all_speaker_images(speakers, force_regenerate)
 
         # Step 7: Generate session files
-        session_stats = session_generator.generate_all_session_files(
-            sessions, force_regenerate
-        )
+        session_stats = session_generator.generate_all_session_files(sessions, force_regenerate)
 
         # Step 8: Get final statistics
         data_stats = data_processor.get_statistics()
@@ -187,9 +174,7 @@ def main():
         data_stats["sessions"] = sessions
 
         # Step 9: Print summary
-        print_summary(
-            data_stats, speaker_stats, session_stats, image_stats, force_regenerate
-        )
+        print_summary(data_stats, speaker_stats, session_stats, image_stats, force_regenerate)
 
         # Cleanup
         image_processor.close()

@@ -5,21 +5,23 @@ Handles downloading, processing, and saving speaker images with enhanced
 LinkedIn extraction using Selenium and smart skip logic.
 """
 
-import requests
-import os
-from PIL import Image
-from typing import Dict, Optional
 import csv
 import logging
+import os
+from typing import Dict, Optional
+
+import requests
+from PIL import Image
+
 from .config import (
     DEFAULT_SPEAKER_IMAGE,
-    OUTPUT_DIR,
-    MISSING_PHOTOS_CSV,
-    IMAGE_SIZE,
     IMAGE_QUALITY,
+    IMAGE_SIZE,
+    LINKEDIN_REQUEST_DELAY,
+    MISSING_PHOTOS_CSV,
+    OUTPUT_DIR,
     REQUEST_TIMEOUT,
     SELENIUM_USER_DATA_DIR,
-    LINKEDIN_REQUEST_DELAY,
 )
 
 # Try to import the Selenium LinkedIn extractor
@@ -81,9 +83,9 @@ class ImageProcessor:
                         self.missing_photos_emails.add(email)
 
                     # Only queue LinkedIn extraction failures for retry
-                    if row.get(
-                        "Reason"
-                    ) == "LinkedIn image extraction failed" and row.get("LinkedIn URL"):
+                    if row.get("Reason") == "LinkedIn image extraction failed" and row.get(
+                        "LinkedIn URL"
+                    ):
                         self.retry_queue.append(
                             {
                                 "email": email,
@@ -93,16 +95,12 @@ class ImageProcessor:
                         )
 
             if self.retry_queue:
-                print(
-                    f"   📋 Found {len(self.retry_queue)} previous LinkedIn failures to retry"
-                )
+                print(f"   📋 Found {len(self.retry_queue)} previous LinkedIn failures to retry")
 
         except Exception as e:
             print(f"   ⚠️  Could not load previous failures: {str(e)}")
 
-    def should_skip_speaker(
-        self, speaker_data: Dict, force_regenerate: bool = False
-    ) -> bool:
+    def should_skip_speaker(self, speaker_data: Dict, force_regenerate: bool = False) -> bool:
         """
         Determine if speaker processing should be skipped.
 
@@ -120,9 +118,7 @@ class ImageProcessor:
         email = speaker_data.get("email", "")
 
         # Check if files exist
-        profile_path = os.path.join(
-            OUTPUT_DIR, "content", "speakers", speaker_slug, "index.md"
-        )
+        profile_path = os.path.join(OUTPUT_DIR, "content", "speakers", speaker_slug, "index.md")
         image_path = os.path.join(
             OUTPUT_DIR, "content", "speakers", speaker_slug, "img", "photo.jpg"
         )
@@ -157,9 +153,7 @@ class ImageProcessor:
             print("   🔐 No LinkedIn session found, login required")
             return self.linkedin_extractor.login_to_linkedin()
 
-    def process_speaker_image(
-        self, speaker_data: Dict, retry_mode: bool = False
-    ) -> str:
+    def process_speaker_image(self, speaker_data: Dict, retry_mode: bool = False) -> str:
         """
         Process and save speaker image.
 
@@ -247,13 +241,9 @@ class ImageProcessor:
         if self.linkedin_extractor:
             # Use Selenium LinkedIn extractor
             try:
-                username = LinkedInSeleniumExtractor.extract_username_from_url(
-                    linkedin_url
-                )
+                username = LinkedInSeleniumExtractor.extract_username_from_url(linkedin_url)
                 if username:
-                    return self.linkedin_extractor.extract_single_profile_image_url(
-                        username
-                    )
+                    return self.linkedin_extractor.extract_single_profile_image_url(username)
                 else:
                     print(f"   ⚠️  Could not extract username from {linkedin_url}")
                     return None
@@ -283,12 +273,8 @@ class ImageProcessor:
             normalized_url = self._normalize_linkedin_url(linkedin_url)
 
             # Simple approach - try to get the page and extract image
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
-            response = requests.get(
-                normalized_url, headers=headers, timeout=REQUEST_TIMEOUT
-            )
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            response = requests.get(normalized_url, headers=headers, timeout=REQUEST_TIMEOUT)
 
             if response.status_code == 200:
                 # Look for profile image patterns in the HTML
@@ -311,9 +297,7 @@ class ImageProcessor:
             return None
 
         except Exception as e:
-            print(
-                f"   ⚠️  Failed to extract LinkedIn image from {linkedin_url}: {str(e)}"
-            )
+            print(f"   ⚠️  Failed to extract LinkedIn image from {linkedin_url}: {str(e)}")
             return None
 
     def _normalize_linkedin_url(self, linkedin_url: str) -> str:
@@ -349,7 +333,7 @@ class ImageProcessor:
                 return f"https://{url}"
             else:
                 # Assume it's just the path part
-                return f'https://www.linkedin.com{url if url.startswith("/") else "/" + url}'
+                return f"https://www.linkedin.com{url if url.startswith('/') else '/' + url}"
 
         # If we can't determine the format, assume it needs https://
         return f"https://{url}" if not url.startswith("http") else url
@@ -367,9 +351,7 @@ class ImageProcessor:
         """
         try:
             # Download image
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
 
@@ -432,9 +414,7 @@ class ImageProcessor:
                 img_resized = img_cropped.resize(IMAGE_SIZE, Image.Resampling.LANCZOS)
 
                 # Save
-                img_resized.save(
-                    output_path, "JPEG", quality=IMAGE_QUALITY, optimize=True
-                )
+                img_resized.save(output_path, "JPEG", quality=IMAGE_QUALITY, optimize=True)
 
                 return True
 
@@ -464,9 +444,7 @@ class ImageProcessor:
             print(f"   ⚠️  Failed to copy default image: {str(e)}")
             return False
 
-    def _log_missing_photo(
-        self, speaker_name: str, email: str, linkedin_url: str, reason: str
-    ):
+    def _log_missing_photo(self, speaker_name: str, email: str, linkedin_url: str, reason: str):
         """
         Log missing photo information.
 
@@ -559,9 +537,7 @@ class ImageProcessor:
 
         # Phase 1: Process retry queue (high priority)
         if self.retry_queue and not force_regenerate:
-            print(
-                f"   🔄 Retrying {len(self.retry_queue)} previous LinkedIn failures..."
-            )
+            print(f"   🔄 Retrying {len(self.retry_queue)} previous LinkedIn failures...")
 
             for retry_item in self.retry_queue:
                 email = retry_item["email"]
@@ -590,9 +566,7 @@ class ImageProcessor:
 
         # Phase 2: Process remaining speakers with skip logic
         remaining_speakers = [
-            (email, data)
-            for email, data in speakers.items()
-            if email not in processed_speakers
+            (email, data) for email, data in speakers.items() if email not in processed_speakers
         ]
 
         if remaining_speakers:
@@ -608,15 +582,11 @@ class ImageProcessor:
 
             # Check if we should skip this speaker
             if self.should_skip_speaker(speaker_data_with_email, force_regenerate):
-                print(
-                    f"   [{i}/{total_remaining}] ✓ Skipped: {speaker_name} (already exists)"
-                )
+                print(f"   [{i}/{total_remaining}] ✓ Skipped: {speaker_name} (already exists)")
                 self.skipped_count += 1
             else:
                 if force_regenerate:
-                    print(
-                        f"   [{i}/{total_remaining}] 🔄 Force regenerating: {speaker_name}"
-                    )
+                    print(f"   [{i}/{total_remaining}] 🔄 Force regenerating: {speaker_name}")
                 else:
                     print(f"   [{i}/{total_remaining}] 📝 Processing: {speaker_name}")
 
@@ -637,9 +607,7 @@ class ImageProcessor:
         if self.failed_count > 0:
             print(f"   ⚠️  Failed: {self.failed_count}")
         if len(self.missing_photos) > 0:
-            print(
-                f"   ⚠️  Issues logged: {len(self.missing_photos)} (see {MISSING_PHOTOS_CSV})"
-            )
+            print(f"   ⚠️  Issues logged: {len(self.missing_photos)} (see {MISSING_PHOTOS_CSV})")
 
         return self.get_statistics()
 

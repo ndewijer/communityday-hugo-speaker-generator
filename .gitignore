@@ -30,3 +30,6 @@ Thumbs.db
 
 # Debug and test scripts
 debug/
+
+# Ruff
+.ruff_cache
