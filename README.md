@@ -122,6 +122,8 @@ Your Excel file should contain these columns:
 - `Abstract of Session` - Session description
 - `Session Duration` - Duration (e.g., "20-30 minutes", "40-50 minutes")
 - `Session Level` - Level (e.g., "100 (Beginner)", "300 (Advanced)")
+- `Room` - Room number/name for the session
+- `Agenda` - Time in HHMM format (e.g., "1100" for 11:00 AM)
 
 ## Features in Detail
 
@@ -136,6 +138,8 @@ Your Excel file should contain these columns:
 - Separate counters per level for filename generation
 - Handles multiple duration options by commenting them out
 - Maps durations to standard values (30 or 60 minutes)
+- Generates ISO 8601 datetime field from event date and agenda time
+- Includes room and agenda information from data source
 
 ### Image Processing
 - Downloads from custom photo URLs first

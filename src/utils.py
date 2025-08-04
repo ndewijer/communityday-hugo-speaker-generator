@@ -6,7 +6,10 @@ Contains helper functions for string sanitization, data processing, and common o
 
 import re
 import unicodedata
+from datetime import datetime
 from typing import Dict, List
+
+from .config import EVENT_DATE
 
 
 def sanitize_speaker_name(name: str) -> str:
@@ -236,3 +239,32 @@ def print_progress(current: int, total: int, item_name: str) -> None:
         item_name: Name of current item
     """
     print(f"   [{current}/{total}] {item_name}")
+
+
+def format_session_datetime(agenda_time: str) -> str:
+    """
+    Format session datetime based on event date and agenda time.
+
+    Args:
+        agenda_time: Time in HHMM format (e.g., "1100" for 11:00 AM)
+
+    Returns:
+        Formatted datetime string (YYYY-MM-DDTHH:MM:00)
+    """
+    if not agenda_time or not agenda_time.strip() or not agenda_time.isdigit():
+        return ""
+
+    try:
+        # Parse the agenda time (HHMM format)
+        hours = int(agenda_time[:2] if len(agenda_time) >= 2 else agenda_time)
+        minutes = int(agenda_time[2:]) if len(agenda_time) > 2 else 0
+
+        # Create datetime object using the event date and agenda time
+        event_date_obj = datetime.strptime(EVENT_DATE, "%Y-%m-%d")
+        session_datetime = event_date_obj.replace(hour=hours, minute=minutes)
+
+        # Format as ISO 8601 datetime string
+        return session_datetime.strftime("%Y-%m-%dT%H:%M:00")
+    except (ValueError, IndexError):
+        # Return empty string if there's any error in parsing
+        return ""
