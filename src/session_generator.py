@@ -65,6 +65,8 @@ class SessionGenerator:
             session_abstract = session_data.get("abstract", "")
             session_duration = session_data.get("duration", "")
             speaker_slug = session_data.get("speaker_slug", "")
+            room = session_data.get("room", "")
+            agenda = session_data.get("agenda", "")
 
             # Generate markdown content
             markdown_content = self._generate_session_markdown(
@@ -73,6 +75,8 @@ class SessionGenerator:
                 session_abstract,
                 session_duration,
                 speaker_slug,
+                room,
+                agenda,
             )
 
             # Write markdown file
@@ -98,6 +102,8 @@ class SessionGenerator:
         abstract: str,
         duration: str,
         speaker_slug: str,
+        room: str = "",
+        agenda: str = "",
     ) -> str:
         """
         Generate session markdown content.
@@ -108,6 +114,8 @@ class SessionGenerator:
             abstract: Session abstract
             duration: Session duration
             speaker_slug: Speaker slug
+            room: Room number/name
+            agenda: Agenda time in HHMM format
 
         Returns:
             Formatted markdown content
@@ -115,9 +123,16 @@ class SessionGenerator:
         # Format fields
         id_field = f'id: "{session_id}"' if session_id else 'id: ""'
         title_field = f'title: "{title}"' if title else 'title: ""'
-        date_field = 'date: ""'  # Empty as specified
-        room_field = 'room: ""'  # Empty as specified
-        agenda_field = 'agenda: ""'  # Empty as specified
+
+        # Generate date field from agenda time
+        from .utils import format_session_datetime
+
+        formatted_datetime = format_session_datetime(agenda)
+        date_field = f'date: "{formatted_datetime}"' if formatted_datetime else 'date: ""'
+
+        # Format room and agenda fields
+        room_field = f'room: "{room}"' if room else 'room: ""'
+        agenda_field = f'agenda: "{agenda}"' if agenda else 'agenda: ""'
 
         # Handle speakers field
         if speaker_slug:

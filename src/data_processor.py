@@ -97,6 +97,8 @@ class DataProcessor:
             session_abstract = safe_get_field(row, SESSION_FIELD_MAPPING["abstract"])
             session_duration = safe_get_field(row, SESSION_FIELD_MAPPING["duration"])
             session_level = safe_get_field(row, "Session Level")
+            session_room = safe_get_field(row, SESSION_FIELD_MAPPING["room"])
+            session_agenda = safe_get_field(row, SESSION_FIELD_MAPPING["agenda"])
 
             # Validate session ID
             if not validate_session_id(session_id):
@@ -136,6 +138,8 @@ class DataProcessor:
                 "abstract": session_abstract,
                 "duration": session_duration,
                 "level": session_level,
+                "room": session_room,
+                "agenda": session_agenda,
             }
 
             speakers[email]["sessions"].append(session_data)
@@ -164,6 +168,8 @@ class DataProcessor:
                     "abstract": session["abstract"],
                     "duration": session["duration"],
                     "level": session["level"],
+                    "room": session.get("room", ""),
+                    "agenda": session.get("agenda", ""),
                     "speaker_slug": speaker_slug,
                     "speaker_name": speaker_data["name"],
                 }

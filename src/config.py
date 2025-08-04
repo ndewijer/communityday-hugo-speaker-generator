@@ -18,7 +18,12 @@ SESSION_FIELD_MAPPING = {
     "abstract": "Abstract of Session",
     "speakers": "Speaker Name",
     "duration": "Session Duration",
+    "room": "Room",
+    "agenda": "Agenda",
 }
+
+# Event date for session datetime generation
+EVENT_DATE = "2025-09-25"
 
 # Session level extraction mapping
 LEVEL_EXTRACTION = {
