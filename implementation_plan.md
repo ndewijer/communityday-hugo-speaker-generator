@@ -16,6 +16,8 @@ This project generates Hugo templates for the AWS Community Day website based on
   - Link to photo (Optional, defaults to LinkedIn Profile)
   - Title of Session, Abstract of Session
   - Session Duration, Session Level
+  - Room (room number/name)
+  - Agenda (time in HHMM format)
   - Voter_1 through Voter_N (future use)
 
 ### Output Structure
@@ -73,11 +75,11 @@ Bio content or ""
 ---
 id: "Session_ID"
 title: "Title of Session"
-date: ""  # Empty for now
+date: "2025-09-25T11:00:00"  # Generated from event date and agenda time
 speakers:
     - "speaker-slug"
-room: ""  # Empty for now
-agenda: ""  # Empty for now
+room: "2"  # Room number/name from data source
+agenda: "1100"  # Agenda time in HHMM format from data source
 duration: "30" or "60"  # Mapped from duration string
 ---
 
@@ -125,8 +127,13 @@ SESSION_FIELD_MAPPING = {
     'title': 'Title of Session',
     'abstract': 'Abstract of Session',
     'speakers': 'Speaker Name',
-    'duration': 'Session Duration'
+    'duration': 'Session Duration',
+    'room': 'Room',
+    'agenda': 'Agenda'
 }
+
+# Event date for session datetime generation
+EVENT_DATE = "2025-09-25"
 
 LEVEL_EXTRACTION = {
     '100 (Beginner)': 1,
