@@ -23,7 +23,7 @@ A Python tool to generate Hugo markdown files for AWS Community Day speakers and
 │   ├── session_generator.py      # Session page generation
 │   ├── image_processor.py        # Image downloading and processing
 │   └── utils.py                  # Utility functions
-├── generated_files/              # Output directory
+├── generated_files/              # Output directory (gitignored)
 │   └── content/
 │       ├── speakers/             # Generated speaker profiles
 │       └── sessions/             # Generated session files
