@@ -6,6 +6,8 @@ A Python tool to generate Hugo markdown files for AWS Community Day speakers and
 
 - **Speaker Profile Generation**: Creates individual speaker pages with bio, headline, and LinkedIn information
 - **Session File Generation**: Generates session pages with proper filename conventions (acd{level}{number}.md)
+- **Persistent Session IDs**: Maintains stable session filenames even when sessions are added or reordered
+- **Content Verification**: Updates existing files when source data changes instead of skipping them
 - **Image Processing**: Downloads and processes speaker images from LinkedIn or custom URLs, with fallback to default image
 - **Data Validation**: Handles missing data gracefully and provides detailed reporting
 - **Duplicate Handling**: Deduplicates speakers by email and handles name conflicts
@@ -26,6 +28,7 @@ A Python tool to generate Hugo markdown files for AWS Community Day speakers and
 │       ├── speakers/             # Generated speaker profiles
 │       └── sessions/             # Generated session files
 ├── data/                         # Input Excel files (gitignored)
+│   └── session_id_mapping.json   # Session ID persistence mapping
 ├── samples/                      # Default images and samples
 ├── template/                     # Reference templates
 ├── main.py                       # Main entry point
@@ -96,6 +99,7 @@ Generated in `generated_files/content/sessions/`:
 - Level 2 (Intermediate): acd201.md, acd202.md, etc.
 - Level 3 (Advanced): acd301.md, acd302.md, etc.
 - Level 4 (Expert): acd401.md, acd402.md, etc.
+- Level 5 (Principal): acd501.md, acd502.md, etc.
 
 ### Reports
 - `missing_photos.csv` - Log of image processing issues
@@ -136,6 +140,8 @@ Your Excel file should contain these columns:
 ### Session Processing
 - Sorts sessions by Session_ID for consistent ordering
 - Separate counters per level for filename generation
+- **Persistent Session IDs**: Maintains stable filenames even when sessions are reordered
+- **Content Verification**: Updates files when source data changes instead of skipping
 - Handles multiple duration options by commenting them out
 - Maps durations to standard values (30 or 60 minutes)
 - Generates ISO 8601 datetime field from event date and agenda time
@@ -177,14 +183,17 @@ Your Excel file should contain these columns:
 
 📋 Generating session files...
    ...
-   ✓ Generated 22 session files
+   ✓ Generated 18 session files
+   🔄 Updated 4 session files
+   ✓ Skipped: 2 (no changes)
 
 ==================================================
 ✅ GENERATION COMPLETE
 
 📊 SUMMARY STATISTICS:
    • Speakers processed: 17
-   • Sessions generated: 22
+   • Sessions generated: 18
+   • Sessions updated: 4
    • Images processed: 17
 
 📈 SESSIONS BY LEVEL:

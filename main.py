@@ -57,6 +57,8 @@ def print_summary(data_stats, speaker_stats, session_stats, image_stats, force_r
     if not force_regenerate and image_stats.get("skipped_count", 0) > 0:
         print(f"   • Speaker profiles skipped: {image_stats.get('skipped_count', 0)}")
     print(f"   • Sessions generated: {session_stats['generated_count']}")
+    if session_stats.get("updated_count", 0) > 0:
+        print(f"   • Sessions updated: {session_stats.get('updated_count', 0)}")
     print(f"   • Images processed: {image_stats['processed_count']}")
     if image_stats.get("skipped_count", 0) > 0:
         print(f"   • Images skipped: {image_stats.get('skipped_count', 0)}")
@@ -65,7 +67,7 @@ def print_summary(data_stats, speaker_stats, session_stats, image_stats, force_r
 
     # Sessions by level
     print(f"\n{EMOJIS['bar_chart']} SESSIONS BY LEVEL:")
-    level_names = {1: "Beginner", 2: "Intermediate", 3: "Advanced", 4: "Expert"}
+    level_names = {1: "Beginner", 2: "Intermediate", 3: "Advanced", 4: "Expert", 5: "Principal"}
 
     # Get level statistics from session generator
     session_gen = SessionGenerator()

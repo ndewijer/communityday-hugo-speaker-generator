@@ -31,6 +31,7 @@ LEVEL_EXTRACTION = {
     "200 (Intermediate)": 2,
     "300 (Advanced)": 3,
     "400 (Expert)": 4,
+    "500 (Principal)": 5,
 }
 
 # Duration mapping patterns
@@ -41,6 +42,7 @@ DEFAULT_SPEAKER_IMAGE = "samples/unknown.jpg"
 EXCEL_FILE_PATH = "data/responses+votes.xlsx"
 OUTPUT_DIR = "generated_files"
 MISSING_PHOTOS_CSV = "missing_photos.csv"
+SESSION_ID_MAPPING_FILE = "data/session_id_mapping.json"
 
 # Image processing settings
 IMAGE_SIZE = (400, 400)  # Square image dimensions
