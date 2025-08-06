@@ -73,7 +73,7 @@ def extract_session_level(level_string: str) -> int:
         level_string: e.g., "300 (Advanced)"
 
     Returns:
-        Numeric level (1-4), defaults to 2 if not found
+        Numeric level (1-5), defaults to 2 if not found
     """
     if not level_string:
         return 2  # Default to intermediate
@@ -82,7 +82,9 @@ def extract_session_level(level_string: str) -> int:
     match = re.search(r"(\d+)", level_string)
     if match:
         level_num = int(match.group(1))
-        if level_num >= 400:
+        if level_num >= 500:
+            return 5
+        elif level_num >= 400:
             return 4
         elif level_num >= 300:
             return 3

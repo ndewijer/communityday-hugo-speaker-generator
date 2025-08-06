@@ -69,6 +69,8 @@ Bio content or ""
 - Extract level number from "Session Level" (e.g., "300 (Advanced)" → 3)
 - Separate counters per level: acd{level}{counter:02d}.md
 - Examples: acd101.md, acd201.md, acd301.md, acd102.md
+- **Persistent Session IDs**: Once assigned, session IDs are preserved between runs using a mapping file
+- **Content Verification**: Existing files are checked for changes and updated if needed
 
 **Session Markdown Template**:
 ```yaml
@@ -139,9 +141,48 @@ LEVEL_EXTRACTION = {
     '100 (Beginner)': 1,
     '200 (Intermediate)': 2,
     '300 (Advanced)': 3,
-    '400 (Expert)': 4
+    '400 (Expert)': 4,
+    '500 (Principal)': 5
 }
 ```
+
+### 5. Session ID Persistence Mechanism
+
+**Purpose**:
+- Maintain stable session IDs once assigned
+- Prevent duplicate content when sessions are added or reordered
+- Allow updates to session content without changing filenames
+
+**Implementation**:
+- Store mapping between Session_IDs and assigned filenames in `data/session_id_mapping.json`
+- Track the next available number for each level
+- When generating sessions:
+  1. Check if Session_ID exists in mapping
+  2. If yes, use previously assigned filename
+  3. If no, assign next available number for that level
+
+**JSON Structure**:
+```json
+{
+  "session_id_mapping": {
+    "d4610b42-6a84-44f7-841f-564927d6ee55": "acd209",
+    "7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p": "acd210"
+  },
+  "level_counters": {
+    "1": 5,  // Next available is acd106
+    "2": 10, // Next available is acd211
+    "3": 7,  // Next available is acd308
+    "4": 2,  // Next available is acd403
+    "5": 0   // Next available is acd501
+  }
+}
+```
+
+**Content Verification Process**:
+1. Extract key data from existing session files (room, time, title, etc.)
+2. Compare with current data from Excel source
+3. Update file if differences are detected
+4. Preserve the assigned filename
 
 ## Project Structure
 
@@ -159,6 +200,7 @@ LEVEL_EXTRACTION = {
 │       ├── speakers/
 │       └── sessions/
 ├── data/                     # Input data (gitignored)
+│   └── session_id_mapping.json # Session ID persistence mapping (gitignored)
 ├── samples/
 │   └── unknown.jpg           # Default speaker image
 ├── template/                 # Reference templates
@@ -223,14 +265,17 @@ pyyaml>=6.0
    ⚠️  Failed: 3 (logged to missing_photos.csv)
 
 📋 Generating session files...
-   ✓ Generated 23 session files
+   ✓ Generated 18 session files
+   🔄 Updated 5 session files
+   ✓ Skipped: 2 (no changes)
 
 ==================================================
 ✅ GENERATION COMPLETE
 
 📊 SUMMARY STATISTICS:
    • Speakers processed: 15
-   • Sessions generated: 23
+   • Sessions generated: 18
+   • Sessions updated: 5
    • Images downloaded: 12
    • Images failed: 3
 
