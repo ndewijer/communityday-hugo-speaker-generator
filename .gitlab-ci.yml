@@ -1,0 +1,14 @@
+stages:
+  - lint
+
+python-lint:
+  stage: lint
+  image: python:3.13
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -r dev-requirements.txt
+    - ruff check .
+    - ruff format --check .
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
