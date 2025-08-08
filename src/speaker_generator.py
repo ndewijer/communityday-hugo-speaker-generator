@@ -111,7 +111,11 @@ class SpeakerGenerator:
         speaker_slug = speaker_data["slug"]
         profile_path = os.path.join(OUTPUT_DIR, "content", "speakers", speaker_slug, "index.md")
 
-        return os.path.exists(profile_path)
+        # Debug output
+        exists = os.path.exists(profile_path)
+        print(f"DEBUG: should_skip_speaker_profile checking {profile_path} - exists: {exists}")
+
+        return exists
 
     def generate_all_speaker_profiles(
         self, speakers: Dict[str, Dict], force_regenerate: bool = False
@@ -166,6 +170,57 @@ class SpeakerGenerator:
             print(f"   ⚠️  Failed: {self.failed_count}")
 
         return self.get_statistics()
+
+    def handle_removed_speakers(self, current_speakers: Dict[str, Dict]) -> None:
+        """
+        Handle speakers that have been removed from the datasource or no longer have sessions.
+
+        Args:
+            current_speakers: Dictionary of current speaker data
+        """
+        # Get all speaker slugs from the current data that have at least one session
+        current_speaker_slugs = set()
+        for _, speaker_data in current_speakers.items():
+            # Only include speakers that have at least one session
+            if speaker_data.get("sessions") and len(speaker_data["sessions"]) > 0:
+                current_speaker_slugs.add(speaker_data["slug"])
+            else:
+                print(f"   ⚠️ Speaker {speaker_data['name']} has no sessions")
+
+        # Get all speaker directories in the output directory
+        speakers_dir = os.path.join(OUTPUT_DIR, "content", "speakers")
+        if not os.path.exists(speakers_dir):
+            return
+
+        existing_speaker_dirs = [
+            d
+            for d in os.listdir(speakers_dir)
+            if os.path.isdir(os.path.join(speakers_dir, d)) and d != "_index"
+        ]
+
+        # Find speaker directories that are not in the current data or have no sessions
+        removed_speaker_slugs = set(existing_speaker_dirs) - current_speaker_slugs
+
+        if removed_speaker_slugs:
+            print(f"\n🗑️ Handling removed speakers...")
+            removed_count = 0
+
+            for speaker_slug in removed_speaker_slugs:
+                speaker_dir = os.path.join(speakers_dir, speaker_slug)
+
+                # Check if this is a valid speaker directory with an index.md file
+                profile_path = os.path.join(speaker_dir, "index.md")
+                if os.path.exists(profile_path):
+                    print(f"   🗑️ Removing speaker profile: {speaker_slug}")
+
+                    # Remove the speaker directory and all its contents
+                    import shutil
+
+                    shutil.rmtree(speaker_dir)
+                    removed_count += 1
+
+            if removed_count > 0:
+                print(f"   ✓ Removed {removed_count} speaker profiles")
 
     def get_statistics(self) -> Dict:
         """

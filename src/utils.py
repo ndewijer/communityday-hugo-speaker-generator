@@ -172,6 +172,15 @@ def safe_get_field(row: Dict, field_name: str, default: str = "") -> str:
     if value is None or value == "" or str(value).strip() == "" or str(value).lower() == "nan":
         return default
 
+    # Special handling for numeric values
+    if isinstance(value, (int, float)):
+        # For room numbers, convert to integer string
+        if field_name == "Room":
+            return str(int(value))
+        # For agenda times, ensure clean HHMM format without decimal
+        elif field_name == "Agenda":
+            return str(int(value))
+
     return str(value).strip()
 
 
@@ -253,13 +262,19 @@ def format_session_datetime(agenda_time: str) -> str:
     Returns:
         Formatted datetime string (YYYY-MM-DDTHH:MM:00)
     """
-    if not agenda_time or not agenda_time.strip() or not agenda_time.isdigit():
+    if not agenda_time or not agenda_time.strip():
+        return ""
+
+    # Clean the agenda time - extract only digits
+    digits_only = "".join(c for c in agenda_time if c.isdigit())
+
+    if not digits_only:
         return ""
 
     try:
         # Parse the agenda time (HHMM format)
-        hours = int(agenda_time[:2] if len(agenda_time) >= 2 else agenda_time)
-        minutes = int(agenda_time[2:]) if len(agenda_time) > 2 else 0
+        hours = int(digits_only[:2] if len(digits_only) >= 2 else digits_only)
+        minutes = int(digits_only[2:]) if len(digits_only) > 2 else 0
 
         # Create datetime object using the event date and agenda time
         event_date_obj = datetime.strptime(EVENT_DATE, "%Y-%m-%d")

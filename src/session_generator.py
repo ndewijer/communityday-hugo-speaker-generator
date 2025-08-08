@@ -40,7 +40,7 @@ class SessionGenerator:
             session_title = session_data.get("title", "")
             session_abstract = session_data.get("abstract", "")
             session_duration = session_data.get("duration", "")
-            speaker_slug = session_data.get("speaker_slug", "")
+            speaker_slugs = session_data.get("speaker_slugs", [])
             room = session_data.get("room", "")
             agenda = session_data.get("agenda", "")
 
@@ -50,7 +50,7 @@ class SessionGenerator:
                 session_title,
                 session_abstract,
                 session_duration,
-                speaker_slug,
+                speaker_slugs,
                 room,
                 agenda,
             )
@@ -77,7 +77,7 @@ class SessionGenerator:
         title: str,
         abstract: str,
         duration: str,
-        speaker_slug: str,
+        speaker_slugs: List[str],
         room: str = "",
         agenda: str = "",
     ) -> str:
@@ -89,7 +89,7 @@ class SessionGenerator:
             title: Session title
             abstract: Session abstract
             duration: Session duration
-            speaker_slug: Speaker slug
+            speaker_slugs: List of speaker slugs
             room: Room number/name
             agenda: Agenda time in HHMM format
 
@@ -110,9 +110,12 @@ class SessionGenerator:
         room_field = f'room: "{room}"' if room else 'room: ""'
         agenda_field = f'agenda: "{agenda}"' if agenda else 'agenda: ""'
 
-        # Handle speakers field
-        if speaker_slug:
-            speakers_field = f'speakers:\n    - "{speaker_slug}"'
+        # Handle speakers field - now supports multiple speakers
+        if speaker_slugs:
+            speakers_lines = ["speakers:"]
+            for slug in speaker_slugs:
+                speakers_lines.append(f'    - "{slug}"')
+            speakers_field = "\n".join(speakers_lines)
         else:
             speakers_field = "speakers: []"
 
@@ -241,10 +244,20 @@ class SessionGenerator:
             if title_match:
                 session_data["title"] = title_match.group(1)
 
-            # Extract speaker slug
-            speaker_match = re.search(r'speakers:\s*\n\s*-\s*"([^"]*)"', frontmatter)
-            if speaker_match:
-                session_data["speaker_slug"] = speaker_match.group(1)
+            # Extract all speaker slugs
+            speaker_slugs = []
+            speaker_pattern = re.compile(r'\s*-\s*"([^"]*)"')
+            speakers_section = re.search(
+                r"speakers:(.*?)(?:\n\w|\n-)", frontmatter + "\nend", re.DOTALL
+            )
+
+            if speakers_section:
+                speakers_text = speakers_section.group(1)
+                for match in speaker_pattern.finditer(speakers_text):
+                    speaker_slugs.append(match.group(1))
+
+                if speaker_slugs:
+                    session_data["speaker_slugs"] = speaker_slugs
 
             # Extract abstract (content after frontmatter)
             abstract_match = re.search(r"---\s+(.*?)\s+---(.*)", content, re.DOTALL)
@@ -269,7 +282,7 @@ class SessionGenerator:
             True if update is needed, False otherwise
         """
         # Check key fields that would require an update
-        fields_to_check = ["title", "room", "agenda", "speaker_slug", "abstract"]
+        fields_to_check = ["title", "room", "agenda", "abstract"]
 
         for field in fields_to_check:
             current_value = session_data.get(field, "")
@@ -278,6 +291,14 @@ class SessionGenerator:
             # If any field is different, update is needed
             if current_value != existing_value:
                 return True
+
+        # Special handling for speaker slugs (comparing lists)
+        current_speakers = session_data.get("speaker_slugs", [])
+        existing_speakers = existing_data.get("speaker_slugs", [])
+
+        # If the speaker lists are different, update is needed
+        if set(current_speakers) != set(existing_speakers):
+            return True
 
         return False
 
@@ -399,7 +420,7 @@ class SessionGenerator:
             session_title = session_data.get("title", "")
             session_abstract = session_data.get("abstract", "")
             session_duration = session_data.get("duration", "")
-            speaker_slug = session_data.get("speaker_slug", "")
+            speaker_slugs = session_data.get("speaker_slugs", [])
             room = session_data.get("room", "")
             agenda = session_data.get("agenda", "")
 
@@ -408,7 +429,7 @@ class SessionGenerator:
                 session_title,
                 session_abstract,
                 session_duration,
-                speaker_slug,
+                speaker_slugs,
                 room,
                 agenda,
             )
@@ -425,6 +446,43 @@ class SessionGenerator:
             print(f"   ⚠️  Failed to update session file {filename}: {str(e)}")
             self.failed_count += 1
             return False
+
+    def handle_removed_sessions(self, current_session_ids: List[str]) -> None:
+        """
+        Handle sessions that have been removed from the datasource.
+
+        Args:
+            current_session_ids: List of session IDs from current data
+        """
+        # Get the stored session ID mapping
+        session_id_mapping = self.mapping_data.get("session_id_mapping", {})
+
+        # Find session IDs that are in the mapping but not in current data
+        removed_session_ids = set(session_id_mapping.keys()) - set(current_session_ids)
+
+        if removed_session_ids:
+            print(f"\n🗑️ Handling removed sessions...")
+            removed_count = 0
+
+            for session_id in removed_session_ids:
+                base_filename = session_id_mapping[session_id]
+                filename = f"{base_filename}.md"
+
+                # Remove the session file
+                session_path = os.path.join(OUTPUT_DIR, "content", "sessions", filename)
+                if os.path.exists(session_path):
+                    print(f"   🗑️ Removing session file: {filename}")
+                    os.remove(session_path)
+                    removed_count += 1
+
+                # Conservative approach: Keep the ID reserved (don't delete from mapping)
+                # This prevents session ID reuse and maintains URL stability
+
+            if removed_count > 0:
+                print(f"   ✓ Removed {removed_count} session files")
+
+            # Save the updated mapping
+            self._save_session_id_mapping()
 
     def generate_all_session_files(
         self, sessions: List[Dict], force_regenerate: bool = False
@@ -443,6 +501,12 @@ class SessionGenerator:
 
         if force_regenerate:
             print("   🔄 Force regeneration enabled - rebuilding all session files")
+
+        # Get current session IDs for removed session handling
+        current_session_ids = [session.get("id", "") for session in sessions if session.get("id")]
+
+        # Handle removed sessions
+        self.handle_removed_sessions(current_session_ids)
 
         # Generate filenames first (using persistent mapping)
         session_filenames = self.generate_session_filenames(sessions)
