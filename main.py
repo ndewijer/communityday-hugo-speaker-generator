@@ -59,6 +59,16 @@ def print_summary(data_stats, speaker_stats, session_stats, image_stats, force_r
     print(f"   • Sessions generated: {session_stats['generated_count']}")
     if session_stats.get("updated_count", 0) > 0:
         print(f"   • Sessions updated: {session_stats.get('updated_count', 0)}")
+
+    # Count sessions with multiple speakers
+    multi_speaker_sessions = 0
+    for session in data_stats.get("sessions", []):
+        if len(session.get("speaker_slugs", [])) > 1:
+            multi_speaker_sessions += 1
+
+    if multi_speaker_sessions > 0:
+        print(f"   • Sessions with multiple speakers: {multi_speaker_sessions}")
+
     print(f"   • Images processed: {image_stats['processed_count']}")
     if image_stats.get("skipped_count", 0) > 0:
         print(f"   • Images skipped: {image_stats.get('skipped_count', 0)}")
@@ -97,6 +107,15 @@ def print_summary(data_stats, speaker_stats, session_stats, image_stats, force_r
             f"{multiple_durations_count} sessions with multiple durations (commented out)"
         )
 
+    # Speakers without sessions
+    speakers_without_sessions = []
+    for email, speaker_data in data_stats.get("speakers", {}).items():
+        if not speaker_data.get("sessions"):
+            speakers_without_sessions.append(speaker_data.get("name", "Unknown"))
+
+    if speakers_without_sessions:
+        warnings.append(f"{len(speakers_without_sessions)} speakers without session data")
+
     # Image issues
     if image_stats["missing_photos_count"] > 0:
         warnings.append(
@@ -129,7 +148,6 @@ def main():
 
         if force_regenerate:
             print("🔄 Force regeneration enabled - all existing files will be rebuilt")
-            print()
 
         # Initialize processors
         data_processor = DataProcessor()
@@ -138,7 +156,7 @@ def main():
         image_processor = ImageProcessor()
 
         # Step 1: Load and process data
-        print(f"{EMOJIS['chart']} Loading Excel data...")
+        print(f"   {EMOJIS['chart']} Loading Excel data...")
         data_processor.load_excel_data()
 
         # Validate required columns
@@ -169,6 +187,9 @@ def main():
 
         # Step 7: Generate session files
         session_stats = session_generator.generate_all_session_files(sessions, force_regenerate)
+
+        # Step 7.5: Handle removed speakers (those no longer in the data or without sessions)
+        speaker_generator.handle_removed_speakers(speakers)
 
         # Step 8: Get final statistics
         data_stats = data_processor.get_statistics()
