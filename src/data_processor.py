@@ -153,28 +153,40 @@ class DataProcessor:
         """
         Prepare sessions data for filename generation and processing.
 
+        Group by session ID and collect all speakers for each session.
+
         Returns:
             List of session dictionaries with speaker slugs
         """
-        sessions = []
+        sessions_by_id = {}
 
         for email, speaker_data in self.speakers.items():
             speaker_slug = speaker_data["slug"]
 
             for session in speaker_data["sessions"]:
-                session_entry = {
-                    "id": session["id"],
-                    "title": session["title"],
-                    "abstract": session["abstract"],
-                    "duration": session["duration"],
-                    "level": session["level"],
-                    "room": session.get("room", ""),
-                    "agenda": session.get("agenda", ""),
-                    "speaker_slug": speaker_slug,
-                    "speaker_name": speaker_data["name"],
-                }
-                sessions.append(session_entry)
+                session_id = session["id"]
 
+                if session_id not in sessions_by_id:
+                    # Create new session entry
+                    sessions_by_id[session_id] = {
+                        "id": session_id,
+                        "title": session["title"],
+                        "abstract": session["abstract"],
+                        "duration": session["duration"],
+                        "level": session["level"],
+                        "room": session.get("room", ""),
+                        "agenda": session.get("agenda", ""),
+                        "speaker_slugs": [speaker_slug],
+                        "speaker_names": [speaker_data["name"]],
+                    }
+                else:
+                    # Add this speaker to existing session
+                    if speaker_slug not in sessions_by_id[session_id]["speaker_slugs"]:
+                        sessions_by_id[session_id]["speaker_slugs"].append(speaker_slug)
+                        sessions_by_id[session_id]["speaker_names"].append(speaker_data["name"])
+
+        # Convert dictionary to list
+        sessions = list(sessions_by_id.values())
         self.sessions = sessions
         return sessions
 
