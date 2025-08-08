@@ -9,7 +9,7 @@ import os
 import re
 from typing import Dict, List, Tuple
 
-from .config import OUTPUT_DIR, SESSION_ID_MAPPING_FILE
+from .config import EMOJIS, OUTPUT_DIR, SESSION_ID_MAPPING_FILE
 from .utils import extract_session_level, print_progress, process_multiple_durations
 
 
@@ -67,7 +67,7 @@ class SessionGenerator:
             return True
 
         except Exception as e:
-            print(f"   ⚠️  Failed to generate session file {filename}: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to generate session file {filename}: {str(e)}")
             self.failed_count += 1
             return False
 
@@ -182,7 +182,7 @@ class SessionGenerator:
                 os.makedirs(os.path.dirname(SESSION_ID_MAPPING_FILE), exist_ok=True)
                 return default_mapping
         except Exception as e:
-            print(f"   ⚠️  Failed to load session ID mapping: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to load session ID mapping: {str(e)}")
             return default_mapping
 
     def _save_session_id_mapping(self) -> bool:
@@ -197,7 +197,7 @@ class SessionGenerator:
                 json.dump(self.mapping_data, f, indent=2)
             return True
         except Exception as e:
-            print(f"   ⚠️  Failed to save session ID mapping: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to save session ID mapping: {str(e)}")
             return False
 
     def _extract_session_data_from_file(self, filepath: str) -> Dict:
@@ -267,7 +267,7 @@ class SessionGenerator:
             return session_data
 
         except Exception as e:
-            print(f"   ⚠️  Failed to extract data from {filepath}: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to extract data from {filepath}: {str(e)}")
             return {}
 
     def _session_needs_update(self, session_data: Dict, existing_data: Dict) -> bool:
@@ -443,7 +443,7 @@ class SessionGenerator:
             return True
 
         except Exception as e:
-            print(f"   ⚠️  Failed to update session file {filename}: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to update session file {filename}: {str(e)}")
             self.failed_count += 1
             return False
 
@@ -461,7 +461,7 @@ class SessionGenerator:
         removed_session_ids = set(session_id_mapping.keys()) - set(current_session_ids)
 
         if removed_session_ids:
-            print(f"\n🗑️ Handling removed sessions...")
+            print(f"\n{EMOJIS['trash']} Handling removed sessions...")
             removed_count = 0
 
             for session_id in removed_session_ids:
@@ -471,7 +471,7 @@ class SessionGenerator:
                 # Remove the session file
                 session_path = os.path.join(OUTPUT_DIR, "content", "sessions", filename)
                 if os.path.exists(session_path):
-                    print(f"   🗑️ Removing session file: {filename}")
+                    print(f"   {EMOJIS['trash']} Removing session file: {filename}")
                     os.remove(session_path)
                     removed_count += 1
 
@@ -479,7 +479,7 @@ class SessionGenerator:
                 # This prevents session ID reuse and maintains URL stability
 
             if removed_count > 0:
-                print(f"   ✓ Removed {removed_count} session files")
+                print(f"   {EMOJIS['check']} Removed {removed_count} session files")
 
             # Save the updated mapping
             self._save_session_id_mapping()
@@ -497,10 +497,12 @@ class SessionGenerator:
         Returns:
             Generation statistics
         """
-        print(f"\n📋 Generating session files...")
+        print(f"\n{EMOJIS['clipboard']} Generating session files...")
 
         if force_regenerate:
-            print("   🔄 Force regeneration enabled - rebuilding all session files")
+            print(
+                f"   {EMOJIS['update']} Force regeneration enabled - rebuilding all session files"
+            )
 
         # Get current session IDs for removed session handling
         current_session_ids = [session.get("id", "") for session in sessions if session.get("id")]
@@ -523,7 +525,9 @@ class SessionGenerator:
 
             if not session_id or session_id not in session_filenames:
                 print_progress(
-                    current, total_sessions, f"⚠️ Skipped: Invalid session ID for {session_title}"
+                    current,
+                    total_sessions,
+                    f"{EMOJIS['warning']} Skipped: Invalid session ID for {session_title}",
                 )
                 self.failed_count += 1
                 continue
@@ -536,11 +540,15 @@ class SessionGenerator:
             )
 
             if should_skip:
-                print_progress(current, total_sessions, f"✓ Skipped: {filename} (no changes)")
+                print_progress(
+                    current, total_sessions, f"{EMOJIS['check']} Skipped: {filename} (no changes)"
+                )
                 skipped_count += 1
             elif should_update:
                 print_progress(
-                    current, total_sessions, f"🔄 Updating: {filename} - {session_title}"
+                    current,
+                    total_sessions,
+                    f"{EMOJIS['update']} Updating: {filename} - {session_title}",
                 )
                 self.update_session_file(session, filename)
                 updated_count += 1
@@ -549,22 +557,24 @@ class SessionGenerator:
                     print_progress(
                         current,
                         total_sessions,
-                        f"🔄 Force regenerating: {filename} - {session_title}",
+                        f"{EMOJIS['update']} Force regenerating: {filename} - {session_title}",
                     )
                 else:
                     print_progress(
-                        current, total_sessions, f"📝 Generating: {filename} - {session_title}"
+                        current,
+                        total_sessions,
+                        f"{EMOJIS['document']} Generating: {filename} - {session_title}",
                     )
 
                 self.generate_session_file(session, filename)
 
-        print(f"   ✓ Generated {self.generated_count} session files")
+        print(f"   {EMOJIS['check']} Generated {self.generated_count} session files")
         if updated_count > 0:
-            print(f"   🔄 Updated {updated_count} session files")
+            print(f"   {EMOJIS['update']} Updated {updated_count} session files")
         if skipped_count > 0:
-            print(f"   ✓ Skipped: {skipped_count} (no changes)")
+            print(f"   {EMOJIS['check']} Skipped: {skipped_count} (no changes)")
         if self.failed_count > 0:
-            print(f"   ⚠️  Failed: {self.failed_count}")
+            print(f"   {EMOJIS['warning']}  Failed: {self.failed_count}")
 
         return self.get_statistics()
 

@@ -145,6 +145,23 @@ LEVEL_EXTRACTION = {
     '400 (Expert)': 4,
     '500 (Principal)': 5
 }
+
+# Centralized emoji dictionary for consistent UI
+EMOJIS = {
+    "rocket": "🚀",
+    "chart": "📊",
+    "people": "👥",
+    "document": "📝",
+    "image": "🖼️",
+    "clipboard": "📋",
+    "check": "✅",
+    "warning": "⚠️",
+    "folder": "📁",
+    "bar_chart": "📈",
+    "trash": "🗑️",
+    "update": "🔄",
+    # Additional emojis as needed
+}
 ```
 
 ### 5. Session ID Persistence Mechanism
@@ -240,10 +257,14 @@ LEVEL_EXTRACTION = {
 ```
 
 **Content Verification Process**:
-1. Extract key data from existing session files (room, time, title, etc.)
+For both sessions and speaker profiles:
+1. Extract key data from existing files:
+   - For sessions: room, time, title, abstract, speakers list
+   - For speakers: name, headline, bio, LinkedIn URL
 2. Compare with current data from Excel source
 3. Update file if differences are detected
-4. Preserve the assigned filename
+4. Preserve the assigned filename/directory structure
+5. Track updated files separately from newly generated ones
 
 ## Project Structure
 
@@ -306,6 +327,8 @@ pyyaml>=6.0
 3. Report missing data and errors
 
 ## Console Output Design
+
+All console output uses emojis from the centralized EMOJIS dictionary in config.py for consistency:
 
 ```
 🚀 Starting Hugo Speaker Generator...
