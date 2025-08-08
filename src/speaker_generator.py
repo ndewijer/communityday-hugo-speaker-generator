@@ -15,13 +15,10 @@ from .utils import format_bio_content, format_linkedin_field, print_progress
 class SpeakerGenerator:
     """Handles generation of speaker markdown files."""
 
-    def __init__(
-            self,
-            debug: bool = False
-            ):
+    def __init__(self, debug: bool = False):
         """
         Initialize SpeakerGenerator with empty statistics.
-        
+
         Args:
             debug: Enable debug output for troubleshooting
         """
@@ -29,7 +26,6 @@ class SpeakerGenerator:
         self.failed_count = 0
         self.updated_count = 0
         self.debug = debug
-        
 
     def generate_speaker_profile(self, speaker_data: Dict) -> bool:
         """
@@ -67,7 +63,10 @@ class SpeakerGenerator:
 
         except Exception as e:
             speaker_name = speaker_data.get("name", "Unknown")
-            print(f"   {EMOJIS['warning']}  Failed to generate speaker profile for {speaker_name}: {str(e)}")
+            print(
+                f"   {EMOJIS['warning']}  Failed to generate speaker profile for "
+                f"{speaker_name}: {str(e)}"
+            )
             self.failed_count += 1
             return False
 
@@ -210,7 +209,10 @@ class SpeakerGenerator:
             return True
 
         except Exception as e:
-            print(f"   {EMOJIS['warning']}  Failed to update speaker profile for {speaker_data.get('name', 'Unknown')}: {str(e)}")
+            print(
+                f"   {EMOJIS['warning']}  Failed to update speaker profile for"
+                f"{speaker_data.get('name', 'Unknown')}: {str(e)}"
+            )
             self.failed_count += 1
             return False
 
@@ -243,7 +245,10 @@ class SpeakerGenerator:
 
         # Debug output
         if self.debug:
-            print(f"DEBUG: should_skip_speaker_profile checking {profile_path} - exists: True, needs_update: {needs_update}")
+            print(
+                f"DEBUG: should_skip_speaker_profile checking {profile_path} - exists: "
+                f"True, needs_update: {needs_update}"
+            )
 
         # If needs update, don't skip but mark for update
         if needs_update:
@@ -280,7 +285,9 @@ class SpeakerGenerator:
             speaker_name = speaker_data["name"]
 
             # Check if we should skip or update this speaker profile
-            should_skip, should_update = self.should_skip_speaker_profile(speaker_data, force_regenerate)
+            should_skip, should_update = self.should_skip_speaker_profile(
+                speaker_data, force_regenerate
+            )
 
             if should_skip:
                 print_progress(

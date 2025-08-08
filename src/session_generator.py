@@ -500,7 +500,9 @@ class SessionGenerator:
         print(f"\n{EMOJIS['clipboard']} Generating session files...")
 
         if force_regenerate:
-            print(f"   {EMOJIS['update']} Force regeneration enabled - rebuilding all session files")
+            print(
+                f"   {EMOJIS['update']} Force regeneration enabled - rebuilding all session files"
+            )
 
         # Get current session IDs for removed session handling
         current_session_ids = [session.get("id", "") for session in sessions if session.get("id")]
@@ -523,7 +525,9 @@ class SessionGenerator:
 
             if not session_id or session_id not in session_filenames:
                 print_progress(
-                    current, total_sessions, f"{EMOJIS['warning']} Skipped: Invalid session ID for {session_title}"
+                    current,
+                    total_sessions,
+                    f"{EMOJIS['warning']} Skipped: Invalid session ID for {session_title}",
                 )
                 self.failed_count += 1
                 continue
@@ -536,11 +540,15 @@ class SessionGenerator:
             )
 
             if should_skip:
-                print_progress(current, total_sessions, f"{EMOJIS['check']} Skipped: {filename} (no changes)")
+                print_progress(
+                    current, total_sessions, f"{EMOJIS['check']} Skipped: {filename} (no changes)"
+                )
                 skipped_count += 1
             elif should_update:
                 print_progress(
-                    current, total_sessions, f"{EMOJIS['update']} Updating: {filename} - {session_title}"
+                    current,
+                    total_sessions,
+                    f"{EMOJIS['update']} Updating: {filename} - {session_title}",
                 )
                 self.update_session_file(session, filename)
                 updated_count += 1
@@ -553,7 +561,9 @@ class SessionGenerator:
                     )
                 else:
                     print_progress(
-                        current, total_sessions, f"{EMOJIS['document']} Generating: {filename} - {session_title}"
+                        current,
+                        total_sessions,
+                        f"{EMOJIS['document']} Generating: {filename} - {session_title}",
                     )
 
                 self.generate_session_file(session, filename)

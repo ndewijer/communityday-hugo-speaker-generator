@@ -51,8 +51,14 @@ class LinkedInSeleniumExtractor:
         Returns:
             True if login successful, False otherwise
         """
-        print(f"{EMOJIS['rocket']} We'll open LinkedIn for you to log in. This is a one-time process. {EMOJIS['key']}")
-        print(f"   {EMOJIS['bulb']} A Chrome browser window will open. Please log in and then return here.")
+        print(
+            f"{EMOJIS['rocket']} We'll open LinkedIn for you to log in. "
+            f"This is a one-time process. {EMOJIS['key']}"
+        )
+        print(
+            f"   {EMOJIS['bulb']} A Chrome browser window will open. "
+            f"Please log in and then return here."
+        )
         input("Press Enter to continue... 😊")
 
         driver = None
@@ -72,19 +78,27 @@ class LinkedInSeleniumExtractor:
             print(f"   {EMOJIS['key']} Complete any 2FA or security challenges if prompted.")
             print(f"   {EMOJIS['hourglass']} Take your time - the browser will stay open.")
 
-            input(f"\n{EMOJIS['check']} Press Enter here AFTER you have successfully logged in to LinkedIn... {EMOJIS['smile']}")
+            input(
+                f"\n{EMOJIS['check']} Press Enter here AFTER you "
+                f"have successfully logged in to LinkedIn... {EMOJIS['smile']}"
+            )
 
             print(f"   {EMOJIS['magnifier']} Verifying your login...")
             # Verify login success
             if self._verify_login_success(driver):
-                print(f"{EMOJIS['check']} Login verified successfully! Credentials saved for future use. {EMOJIS['party']}")
+                print(
+                    f"{EMOJIS['check']} Login verified successfully! "
+                    f"Credentials saved for future use. {EMOJIS['party']}"
+                )
                 driver.quit()
                 self.driver = None
                 return True
             else:
                 print(f"{EMOJIS['cross']} Login verification failed.")
                 print(f"   {EMOJIS['bulb']} Please make sure you're fully logged in to LinkedIn.")
-                print(f"   {EMOJIS['bulb']} Check if LinkedIn is asking for additional verification.")
+                print(
+                    f"   {EMOJIS['bulb']} Check if LinkedIn is asking for additional verification."
+                )
                 driver.quit()
                 self.driver = None
                 return False
@@ -97,7 +111,9 @@ class LinkedInSeleniumExtractor:
         except Exception as e:
             print(f"{EMOJIS['cross']} Login process failed: {str(e)}")
             print(f"   {EMOJIS['bulb']} This might be a Chrome/ChromeDriver compatibility issue.")
-            print(f"   {EMOJIS['bulb']} Try updating Chrome and ChromeDriver to the latest versions.")
+            print(
+                f"   {EMOJIS['bulb']} Try updating Chrome and ChromeDriver to the latest versions."
+            )
             if driver:
                 driver.quit()
             sys.exit(1)
@@ -205,7 +221,9 @@ class LinkedInSeleniumExtractor:
             driver.implicitly_wait(10)
 
             if self.debug:
-                print(f"   {EMOJIS['globe']} Chrome window should be visible (headless: {headless})")
+                print(
+                    f"   {EMOJIS['globe']} Chrome window should be visible (headless: {headless})"
+                )
 
             return driver
 
@@ -222,7 +240,10 @@ class LinkedInSeleniumExtractor:
             elif "chrome" in error_msg.lower():
                 print(f"{EMOJIS['bulb']} Chrome browser not found. Please install Google Chrome.")
             elif "permission" in error_msg.lower():
-                print(f"{EMOJIS['bulb']} Permission denied. Try running with sudo or check file permissions.")
+                print(
+                    f"{EMOJIS['bulb']} Permission denied. "
+                    f"Try running with sudo or check file permissions."
+                )
             else:
                 print(f"{EMOJIS['bulb']} Try these troubleshooting steps:")
                 print("   1. Update Chrome browser to latest version")
@@ -243,7 +264,9 @@ class LinkedInSeleniumExtractor:
         Returns:
             Dictionary with download statistics
         """
-        print(f"{EMOJIS['magnifier']} Preparing to get profile pictures for {len(usernames)} users...")
+        print(
+            f"{EMOJIS['magnifier']} Preparing to get profile pictures for {len(usernames)} users..."
+        )
 
         # Create output folder
         os.makedirs(output_folder, exist_ok=True)
