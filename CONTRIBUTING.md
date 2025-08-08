@@ -160,6 +160,7 @@ flake8 .                   # Lint code
 - **Docstrings**: Google style docstrings required for all functions and classes
 - **Type Hints**: Use type hints for function parameters and return values
 - **Import Organization**: Follow PEP 8 import ordering
+- **Emoji Usage**: Use the centralized EMOJIS dictionary from config.py instead of hardcoded emojis
 
 ### Flake8 Configuration
 
@@ -445,13 +446,21 @@ When testing the multiple speakers per session and session removal features:
 4. **Numeric Field Handling Testing**:
    - Ensure Excel numeric values (room numbers, agenda times) are properly formatted
    - Verify room numbers appear as clean integers (e.g., "3" instead of "3.0")
-   - Check agenda times are properly formatted (e.g., "1100" instead of "1100.0")
-   - Test with various agenda time formats to ensure robust parsing
-   - Confirm date fields are correctly generated in ISO 8601 format
 
-### Updating Dependencies
+### Testing Content Verification
 
-```bash
+When testing the content verification functionality:
+
+1. **Session Content Verification**:
+   - Modify session details in the Excel file (title, abstract, etc.)
+   - Run the generator and verify the session file is updated
+   - Check that the session ID and filename remain the same
+
+2. **Speaker Profile Verification**:
+   - Modify speaker details in the Excel file (name, headline, bio, LinkedIn URL)
+   - Run the generator and verify the speaker profile is updated
+   - Check that the speaker directory structure remains the same
+   - Verify that updated profiles are tracked separately in statistics
 # Update development dependencies
 pip install --upgrade pre-commit black flake8 flake8-docstrings
 pip freeze | grep -E "(pre-commit|black|flake8)" > temp_versions.txt

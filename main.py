@@ -148,7 +148,6 @@ def main():
 
         if force_regenerate:
             print("🔄 Force regeneration enabled - all existing files will be rebuilt")
-            print()
 
         # Initialize processors
         data_processor = DataProcessor()
@@ -157,7 +156,7 @@ def main():
         image_processor = ImageProcessor()
 
         # Step 1: Load and process data
-        print(f"{EMOJIS['chart']} Loading Excel data...")
+        print(f"   {EMOJIS['chart']} Loading Excel data...")
         data_processor.load_excel_data()
 
         # Validate required columns

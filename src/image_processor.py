@@ -15,6 +15,7 @@ from PIL import Image
 
 from .config import (
     DEFAULT_SPEAKER_IMAGE,
+    EMOJIS,
     IMAGE_QUALITY,
     IMAGE_SIZE,
     LINKEDIN_REQUEST_DELAY,
@@ -56,14 +57,14 @@ class ImageProcessor:
                 request_delay=LINKEDIN_REQUEST_DELAY,
                 debug=False,  # Set to True for troubleshooting
             )
-            print("   ✓ Selenium LinkedIn extractor available")
+            print(f"   {EMOJIS['check']} Selenium LinkedIn extractor available")
         else:
             self.linkedin_extractor = None
             if not SELENIUM_AVAILABLE:
-                print("   ⚠️  Selenium LinkedIn extractor not available")
-                print("   💡 Install with: pip install -r requirements-selenium.txt")
+                print(f"   {EMOJIS['warning']}  Selenium LinkedIn extractor not available")
+                print(f"   {EMOJIS['bulb']} Install with: pip install -r requirements-selenium.txt")
             else:
-                print("   ⚠️  Selenium not installed, using basic extraction")
+                print(f"   {EMOJIS['warning']}  Selenium not installed, using basic extraction")
 
         # Setup logging
         logging.basicConfig(level=logging.INFO)
@@ -95,10 +96,13 @@ class ImageProcessor:
                         )
 
             if self.retry_queue:
-                print(f"   📋 Found {len(self.retry_queue)} previous LinkedIn failures to retry")
+                print(
+                    f"   {EMOJIS['clipboard']} Found "
+                    f"{len(self.retry_queue)} previous LinkedIn failures to retry"
+                )
 
         except Exception as e:
-            print(f"   ⚠️  Could not load previous failures: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Could not load previous failures: {str(e)}")
 
     def should_skip_speaker(self, speaker_data: Dict, force_regenerate: bool = False) -> bool:
         """
@@ -147,10 +151,10 @@ class ImageProcessor:
         session_exists = os.path.exists(session_dir) and os.listdir(session_dir)
 
         if session_exists:
-            print("   ✅ Existing LinkedIn session found")
+            print(f"   {EMOJIS['check']} Existing LinkedIn session found")
             return True
         else:
-            print("   🔐 No LinkedIn session found, login required")
+            print(f"   {EMOJIS['key']} No LinkedIn session found, login required")
             return self.linkedin_extractor.login_to_linkedin()
 
     def process_speaker_image(self, speaker_data: Dict, retry_mode: bool = False) -> str:
@@ -245,7 +249,7 @@ class ImageProcessor:
                 if username:
                     return self.linkedin_extractor.extract_single_profile_image_url(username)
                 else:
-                    print(f"   ⚠️  Could not extract username from {linkedin_url}")
+                    print(f"   {EMOJIS['warning']}  Could not extract username from {linkedin_url}")
                     return None
             except Exception as e:
                 self.logger.error(
@@ -297,7 +301,10 @@ class ImageProcessor:
             return None
 
         except Exception as e:
-            print(f"   ⚠️  Failed to extract LinkedIn image from {linkedin_url}: {str(e)}")
+            print(
+                f"   {EMOJIS['warning']}  Failed to extract LinkedIn "
+                f"image from {linkedin_url}: {str(e)}"
+            )
             return None
 
     def _normalize_linkedin_url(self, linkedin_url: str) -> str:
@@ -370,7 +377,7 @@ class ImageProcessor:
                 return False
 
         except Exception as e:
-            print(f"   ⚠️  Failed to download image from {url}: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to download image from {url}: {str(e)}")
             return False
 
     def _process_image_to_square(self, input_path: str, output_path: str) -> bool:
@@ -419,7 +426,7 @@ class ImageProcessor:
                 return True
 
         except Exception as e:
-            print(f"   ⚠️  Failed to process image {input_path}: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to process image {input_path}: {str(e)}")
             return False
 
     def _copy_default_image(self, output_path: str) -> bool:
@@ -434,14 +441,14 @@ class ImageProcessor:
         """
         try:
             if not os.path.exists(DEFAULT_SPEAKER_IMAGE):
-                print(f"   ⚠️  Default image not found: {DEFAULT_SPEAKER_IMAGE}")
+                print(f"   {EMOJIS['warning']}  Default image not found: {DEFAULT_SPEAKER_IMAGE}")
                 return False
 
             # Process default image to ensure it's square and correct size
             return self._process_image_to_square(DEFAULT_SPEAKER_IMAGE, output_path)
 
         except Exception as e:
-            print(f"   ⚠️  Failed to copy default image: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to copy default image: {str(e)}")
             return False
 
     def _log_missing_photo(self, speaker_name: str, email: str, linkedin_url: str, reason: str):
@@ -476,11 +483,13 @@ class ImageProcessor:
                 try:
                     os.remove(MISSING_PHOTOS_CSV)
                     print(
-                        f"   ✓ Removed empty {MISSING_PHOTOS_CSV} "
+                        f"   {EMOJIS['check']} Removed empty {MISSING_PHOTOS_CSV} "
                         "(all images processed successfully)"
                     )
                 except Exception as e:
-                    print(f"   ⚠️  Could not remove {MISSING_PHOTOS_CSV}: {str(e)}")
+                    print(
+                        f"   {EMOJIS['warning']}  Could not remove {MISSING_PHOTOS_CSV}: {str(e)}"
+                    )
             return True
 
         try:
@@ -492,11 +501,11 @@ class ImageProcessor:
                 for photo_data in self.missing_photos:
                     writer.writerow(photo_data)
 
-            print(f"   ✓ Missing photos report saved to {MISSING_PHOTOS_CSV}")
+            print(f"   {EMOJIS['check']} Missing photos report saved to {MISSING_PHOTOS_CSV}")
             return True
 
         except Exception as e:
-            print(f"   ⚠️  Failed to save missing photos report: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to save missing photos report: {str(e)}")
             return False
 
     def get_statistics(self) -> Dict:
@@ -527,17 +536,20 @@ class ImageProcessor:
         Returns:
             Processing statistics
         """
-        print(f"\n🖼️  Processing speaker images...")
+        print(f"\n{EMOJIS['image']}  Processing speaker images...")
 
         if force_regenerate:
-            print("   🔄 Force regeneration enabled - rebuilding all images")
+            print(f"   {EMOJIS['update']} Force regeneration enabled - rebuilding all images")
 
         processed_speakers = set()
         retry_successes = 0
 
         # Phase 1: Process retry queue (high priority)
         if self.retry_queue and not force_regenerate:
-            print(f"   🔄 Retrying {len(self.retry_queue)} previous LinkedIn failures...")
+            print(
+                f"   {EMOJIS['update']} Retrying "
+                f"{len(self.retry_queue)} previous LinkedIn failures..."
+            )
 
             for retry_item in self.retry_queue:
                 email = retry_item["email"]
@@ -545,23 +557,24 @@ class ImageProcessor:
                     speaker_data = speakers[email].copy()
                     speaker_data["email"] = email
 
-                    print(f"   🔄 Retrying: {retry_item['name']}")
+                    print(f"   {EMOJIS['update']} Retrying: {retry_item['name']}")
 
                     # Process with retry mode - only count actual LinkedIn success
                     result = self.process_speaker_image(speaker_data, retry_mode=True)
                     if result == "success":
-                        print(f"   ✅ Retry successful!")
+                        print(f"   {EMOJIS['check']} Retry successful!")
                         retry_successes += 1
                     elif result == "default":
-                        print(f"   ❌ Still failed - using default image")
+                        print(f"   {EMOJIS['cross']} Still failed - using default image")
                     else:
-                        print(f"   ❌ Failed completely")
+                        print(f"   {EMOJIS['cross']} Failed completely")
 
                     processed_speakers.add(email)
 
             if retry_successes > 0:
                 print(
-                    f"   🎉 Successfully recovered {retry_successes} images from previous failures!"
+                    f"   {EMOJIS['party']} Successfully recovered "
+                    f"{retry_successes} images from previous failures!"
                 )
 
         # Phase 2: Process remaining speakers with skip logic
@@ -570,7 +583,10 @@ class ImageProcessor:
         ]
 
         if remaining_speakers:
-            print(f"   📋 Processing {len(remaining_speakers)} remaining speakers...")
+            print(
+                f"   {EMOJIS['clipboard']} Processing "
+                f"{len(remaining_speakers)} remaining speakers..."
+            )
 
         for i, (email, speaker_data) in enumerate(remaining_speakers, 1):
             speaker_name = speaker_data["name"]
@@ -582,13 +598,21 @@ class ImageProcessor:
 
             # Check if we should skip this speaker
             if self.should_skip_speaker(speaker_data_with_email, force_regenerate):
-                print(f"   [{i}/{total_remaining}] ✓ Skipped: {speaker_name} (already exists)")
+                print(
+                    f"   [{i}/{total_remaining}] {EMOJIS['check']} "
+                    f"Skipped: {speaker_name} (already exists)"
+                )
                 self.skipped_count += 1
             else:
                 if force_regenerate:
-                    print(f"   [{i}/{total_remaining}] 🔄 Force regenerating: {speaker_name}")
+                    print(
+                        f"   [{i}/{total_remaining}] {EMOJIS['update']} "
+                        f"Force regenerating: {speaker_name}"
+                    )
                 else:
-                    print(f"   [{i}/{total_remaining}] 📝 Processing: {speaker_name}")
+                    print(
+                        f"   [{i}/{total_remaining}] {EMOJIS['document']}Processing: {speaker_name}"
+                    )
 
                 self.process_speaker_image(speaker_data_with_email)
 
@@ -598,16 +622,19 @@ class ImageProcessor:
         self.save_missing_photos_report()
 
         # Final statistics
-        print(f"   ✓ Total processed: {len(processed_speakers)}")
+        print(f"   {EMOJIS['check']} Total processed: {len(processed_speakers)}")
         if self.skipped_count > 0:
-            print(f"   ✓ Skipped: {self.skipped_count}")
-        print(f"   ✓ Downloaded: {self.processed_count}")
+            print(f"   {EMOJIS['check']} Skipped: {self.skipped_count}")
+        print(f"   {EMOJIS['check']} Downloaded: {self.processed_count}")
         if retry_successes > 0:
-            print(f"   🔄 Retry successes: {retry_successes}")
+            print(f"   {EMOJIS['update']} Retry successes: {retry_successes}")
         if self.failed_count > 0:
-            print(f"   ⚠️  Failed: {self.failed_count}")
+            print(f"   {EMOJIS['warning']}  Failed: {self.failed_count}")
         if len(self.missing_photos) > 0:
-            print(f"   ⚠️  Issues logged: {len(self.missing_photos)} (see {MISSING_PHOTOS_CSV})")
+            print(
+                f"   {EMOJIS['warning']}  Issues logged: "
+                f"{len(self.missing_photos)} (see {MISSING_PHOTOS_CSV})"
+            )
 
         return self.get_statistics()
 
