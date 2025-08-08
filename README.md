@@ -139,15 +139,15 @@ Your Excel file should contain these columns:
 - Handles name conflicts with numeric suffixes
 - Comments out empty LinkedIn fields
 
+
 ### Session Processing
 - Sorts sessions by Session_ID for consistent ordering
 - Separate counters per level for filename generation
-- **Multiple Speakers Support**: Handles any number of speakers per session
-- **Persistent Session IDs**: Maintains stable filenames even when sessions are reordered
-- **Content Verification**: Updates files when source data changes instead of skipping
-- **Session Removal Handling**: Detects and removes sessions no longer in the datasource
-- **Speaker Removal Handling**: Updates sessions when speakers are removed
-- **Numeric Field Handling**: Properly formats room numbers and agenda times from Excel
+- Handles any number of speakers per session
+- Maintains stable filenames even when sessions are reordered
+- Detects and removes sessions no longer in the datasource
+- Updates sessions when speakers are removed
+- Properly formats room numbers and agenda times from Excel
 - Handles multiple duration options by commenting them out
 - Maps durations to standard values (30 or 60 minutes)
 - Generates ISO 8601 datetime field from event date and agenda time

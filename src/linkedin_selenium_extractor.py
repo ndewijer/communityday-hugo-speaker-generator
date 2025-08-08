@@ -19,6 +19,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from tqdm import tqdm
 
+from .config import EMOJIS
+
 
 class LinkedInSeleniumExtractor:
     """Selenium-based LinkedIn profile image extractor."""
@@ -49,53 +51,53 @@ class LinkedInSeleniumExtractor:
         Returns:
             True if login successful, False otherwise
         """
-        print("🚀 We'll open LinkedIn for you to log in. This is a one-time process. 🔐")
-        print("   💡 A Chrome browser window will open. Please log in and then return here.")
+        print(f"{EMOJIS['rocket']} We'll open LinkedIn for you to log in. This is a one-time process. {EMOJIS['key']}")
+        print(f"   {EMOJIS['bulb']} A Chrome browser window will open. Please log in and then return here.")
         input("Press Enter to continue... 😊")
 
         driver = None
         try:
-            print("   🔧 Starting Chrome browser...")
+            print(f"   {EMOJIS['wrench']} Starting Chrome browser...")
             driver = self._create_driver(headless=False)
             self.driver = driver
 
-            print("   🌐 Navigating to LinkedIn login page...")
+            print(f"   {EMOJIS['globe']} Navigating to LinkedIn login page...")
             driver.get("https://www.linkedin.com/login")
 
             # Give the page time to load
             time.sleep(3)
 
-            print("🖥️ LinkedIn login page should now be open in Chrome.")
-            print("   📝 Please log in to LinkedIn in the browser window.")
-            print("   🔐 Complete any 2FA or security challenges if prompted.")
-            print("   ⏳ Take your time - the browser will stay open.")
+            print(f"{EMOJIS['computer']} LinkedIn login page should now be open in Chrome.")
+            print(f"   {EMOJIS['document']} Please log in to LinkedIn in the browser window.")
+            print(f"   {EMOJIS['key']} Complete any 2FA or security challenges if prompted.")
+            print(f"   {EMOJIS['hourglass']} Take your time - the browser will stay open.")
 
-            input("\n✅ Press Enter here AFTER you have successfully logged in to LinkedIn... 😊")
+            input(f"\n{EMOJIS['check']} Press Enter here AFTER you have successfully logged in to LinkedIn... {EMOJIS['smile']}")
 
-            print("   🔍 Verifying your login...")
+            print(f"   {EMOJIS['magnifier']} Verifying your login...")
             # Verify login success
             if self._verify_login_success(driver):
-                print("✅ Login verified successfully! Credentials saved for future use. 🎉")
+                print(f"{EMOJIS['check']} Login verified successfully! Credentials saved for future use. {EMOJIS['party']}")
                 driver.quit()
                 self.driver = None
                 return True
             else:
-                print("❌ Login verification failed.")
-                print("   💡 Please make sure you're fully logged in to LinkedIn.")
-                print("   💡 Check if LinkedIn is asking for additional verification.")
+                print(f"{EMOJIS['cross']} Login verification failed.")
+                print(f"   {EMOJIS['bulb']} Please make sure you're fully logged in to LinkedIn.")
+                print(f"   {EMOJIS['bulb']} Check if LinkedIn is asking for additional verification.")
                 driver.quit()
                 self.driver = None
                 return False
 
         except KeyboardInterrupt:
-            print("\n❌ Login process cancelled by user.")
+            print(f"\n{EMOJIS['cross']} Login process cancelled by user.")
             if driver:
                 driver.quit()
             sys.exit(1)
         except Exception as e:
-            print(f"❌ Login process failed: {str(e)}")
-            print("   💡 This might be a Chrome/ChromeDriver compatibility issue.")
-            print("   💡 Try updating Chrome and ChromeDriver to the latest versions.")
+            print(f"{EMOJIS['cross']} Login process failed: {str(e)}")
+            print(f"   {EMOJIS['bulb']} This might be a Chrome/ChromeDriver compatibility issue.")
+            print(f"   {EMOJIS['bulb']} Try updating Chrome and ChromeDriver to the latest versions.")
             if driver:
                 driver.quit()
             sys.exit(1)
@@ -140,7 +142,7 @@ class LinkedInSeleniumExtractor:
             return True
 
         except Exception as e:
-            print(f"   ⚠️  Login verification error: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Login verification error: {str(e)}")
             return False
 
     def _create_driver(self, headless: bool = False) -> webdriver.Chrome:
@@ -196,33 +198,33 @@ class LinkedInSeleniumExtractor:
             # Only show debug messages when debug mode is enabled
             if self.debug:
                 pid = driver.service.process.pid if driver.service.process else "unknown"
-                print(f"   ✅ Chrome driver created successfully (PID: {pid})")
+                print(f"   {EMOJIS['check']} Chrome driver created successfully (PID: {pid})")
 
             # Additional setup for stability
             driver.set_page_load_timeout(30)
             driver.implicitly_wait(10)
 
             if self.debug:
-                print(f"   🌐 Chrome window should be visible (headless: {headless})")
+                print(f"   {EMOJIS['globe']} Chrome window should be visible (headless: {headless})")
 
             return driver
 
         except WebDriverException as e:
             error_msg = str(e)
-            print(f"❌ Failed to create Chrome driver: {error_msg}")
+            print(f"{EMOJIS['cross']} Failed to create Chrome driver: {error_msg}")
 
             # Provide specific troubleshooting based on error
             if "chromedriver" in error_msg.lower():
-                print("💡 ChromeDriver not found. Install with:")
+                print(f"{EMOJIS['bulb']} ChromeDriver not found. Install with:")
                 print("   macOS: brew install chromedriver")
                 print("   Ubuntu: sudo apt-get install chromium-chromedriver")
                 print("   Or download from: https://chromedriver.chromium.org/")
             elif "chrome" in error_msg.lower():
-                print("💡 Chrome browser not found. Please install Google Chrome.")
+                print(f"{EMOJIS['bulb']} Chrome browser not found. Please install Google Chrome.")
             elif "permission" in error_msg.lower():
-                print("💡 Permission denied. Try running with sudo or check file permissions.")
+                print(f"{EMOJIS['bulb']} Permission denied. Try running with sudo or check file permissions.")
             else:
-                print("💡 Try these troubleshooting steps:")
+                print(f"{EMOJIS['bulb']} Try these troubleshooting steps:")
                 print("   1. Update Chrome browser to latest version")
                 print("   2. Update ChromeDriver to match Chrome version")
                 print("   3. Check that ChromeDriver is in your PATH")
@@ -241,7 +243,7 @@ class LinkedInSeleniumExtractor:
         Returns:
             Dictionary with download statistics
         """
-        print(f"🔍 Preparing to get profile pictures for {len(usernames)} users...")
+        print(f"{EMOJIS['magnifier']} Preparing to get profile pictures for {len(usernames)} users...")
 
         # Create output folder
         os.makedirs(output_folder, exist_ok=True)
@@ -252,18 +254,18 @@ class LinkedInSeleniumExtractor:
 
         try:
             # Navigate to LinkedIn and load session
-            print("🔐 Loading LinkedIn session...")
+            print(f"{EMOJIS['key']} Loading LinkedIn session...")
             driver.get("https://www.linkedin.com")
             time.sleep(2)
 
             # Verify we're still logged in
             if not self._verify_login_success(driver):
-                print("❌ LinkedIn session expired. Please run login again.")
+                print(f"{EMOJIS['cross']} LinkedIn session expired. Please run login again.")
                 driver.quit()
                 self.driver = None
                 return {"success": 0, "failed": 0, "errors": ["Session expired"]}
 
-            print("✅ LinkedIn session loaded successfully")
+            print(f"{EMOJIS['check']} LinkedIn session loaded successfully")
 
             # Process each username
             stats = {"success": 0, "failed": 0, "errors": []}
@@ -281,7 +283,7 @@ class LinkedInSeleniumExtractor:
 
                 except Exception as e:
                     error_msg = f"Error getting profile picture for {username}: {str(e)}"
-                    print(f"   ⚠️  {error_msg}")
+                    print(f"   {EMOJIS['warning']}  {error_msg}")
                     stats["errors"].append(error_msg)
                     stats["failed"] += 1
 
@@ -340,7 +342,7 @@ class LinkedInSeleniumExtractor:
                     continue
 
             if not img_url:
-                print(f"   ⚠️  No profile image found for {username}")
+                print(f"   {EMOJIS['warning']}  No profile image found for {username}")
                 return False
 
             # Download the image
@@ -363,7 +365,7 @@ class LinkedInSeleniumExtractor:
             return True
 
         except Exception as e:
-            print(f"   ⚠️  Failed to download image for {username}: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Failed to download image for {username}: {str(e)}")
             return False
 
     def extract_single_profile_image_url(self, username: str) -> Optional[str]:
@@ -415,7 +417,7 @@ class LinkedInSeleniumExtractor:
             return None
 
         except Exception as e:
-            print(f"   ⚠️  Error extracting image URL for {username}: {str(e)}")
+            print(f"   {EMOJIS['warning']}  Error extracting image URL for {username}: {str(e)}")
             return None
 
         finally:
