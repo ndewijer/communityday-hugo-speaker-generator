@@ -6,6 +6,8 @@ A Python tool to generate Hugo markdown files for AWS Community Day speakers and
 
 - **Speaker Profile Generation**: Creates individual speaker pages with bio, headline, and LinkedIn information
 - **Session File Generation**: Generates session pages with proper filename conventions (acd{level}{number}.md)
+- **Multiple Speakers Per Session**: Supports any number of speakers for a single session
+- **Session & Speaker Removal**: Handles removal of sessions and speakers from the datasource
 - **Persistent Session IDs**: Maintains stable session filenames even when sessions are added or reordered
 - **Content Verification**: Updates existing files when source data changes instead of skipping them
 - **Image Processing**: Downloads and processes speaker images from LinkedIn or custom URLs, with fallback to default image
@@ -140,12 +142,17 @@ Your Excel file should contain these columns:
 ### Session Processing
 - Sorts sessions by Session_ID for consistent ordering
 - Separate counters per level for filename generation
+- **Multiple Speakers Support**: Handles any number of speakers per session
 - **Persistent Session IDs**: Maintains stable filenames even when sessions are reordered
 - **Content Verification**: Updates files when source data changes instead of skipping
+- **Session Removal Handling**: Detects and removes sessions no longer in the datasource
+- **Speaker Removal Handling**: Updates sessions when speakers are removed
+- **Numeric Field Handling**: Properly formats room numbers and agenda times from Excel
 - Handles multiple duration options by commenting them out
 - Maps durations to standard values (30 or 60 minutes)
 - Generates ISO 8601 datetime field from event date and agenda time
 - Includes room and agenda information from data source
+- Preserves session IDs even after removal to maintain URL stability
 
 ### Image Processing
 - Downloads from custom photo URLs first
@@ -194,6 +201,7 @@ Your Excel file should contain these columns:
    • Speakers processed: 17
    • Sessions generated: 18
    • Sessions updated: 4
+   • Sessions with multiple speakers: 2
    • Images processed: 17
 
 📈 SESSIONS BY LEVEL:

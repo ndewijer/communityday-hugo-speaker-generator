@@ -79,7 +79,8 @@ id: "Session_ID"
 title: "Title of Session"
 date: "2025-09-25T11:00:00"  # Generated from event date and agenda time
 speakers:
-    - "speaker-slug"
+    - "speaker-slug-1"
+    - "speaker-slug-2"  # Multiple speakers supported
 room: "2"  # Room number/name from data source
 agenda: "1100"  # Agenda time in HHMM format from data source
 duration: "30" or "60"  # Mapped from duration string
@@ -152,6 +153,66 @@ LEVEL_EXTRACTION = {
 - Maintain stable session IDs once assigned
 - Prevent duplicate content when sessions are added or reordered
 - Allow updates to session content without changing filenames
+- Preserve session IDs even after removal to maintain URL stability
+
+### 6. Multiple Speakers Per Session
+
+**Implementation**:
+- Group sessions by Session_ID in data processing
+- Collect all speakers associated with each session
+- Store speaker slugs as a list rather than a single value
+- Generate session files with multiple speaker entries in YAML frontmatter
+- Update session content when speakers are added or removed
+
+**Conflict Resolution**:
+- When multiple speakers have entries for the same session with different details:
+  - First speaker's session details (title, abstract, etc.) are used as canonical
+  - Subsequent speakers' conflicting session details are ignored
+  - All speakers are still listed as speakers for the session
+
+### 7. Session and Speaker Removal Handling
+
+**Session Removal**:
+- When a session is removed from the datasource, its file is deleted
+- Session ID remains reserved in the mapping file (not reused)
+- This prevents URL conflicts if session IDs are reused later
+
+**Speaker Removal**:
+- When a speaker is removed from the datasource, their profile is deleted
+- If a speaker is removed from a session but other speakers remain, the session is preserved
+- Only the removed speaker's slug is removed from the session's speakers list
+- If all speakers are removed from a session, the session file is deleted
+
+### 8. Numeric Field Handling
+
+**Problem**:
+- Excel numeric values (room numbers, agenda times) were being rendered with decimal points
+- For example, room "3" appeared as "3.0" and agenda time "1100" as "1100.0"
+- Date fields were sometimes empty due to non-digit characters in agenda times
+
+**Solution**:
+- Enhanced `safe_get_field` function to handle numeric values specially:
+  ```python
+  # Special handling for numeric values
+  if isinstance(value, (int, float)):
+      # For room numbers, convert to integer string
+      if field_name == "Room":
+          return str(int(value))
+      # For agenda times, ensure clean HHMM format without decimal
+      elif field_name == "Agenda":
+          return str(int(value))
+  ```
+
+- Made `format_session_datetime` more robust by extracting only digits:
+  ```python
+  # Clean the agenda time - extract only digits
+  digits_only = "".join(c for c in agenda_time if c.isdigit())
+  ```
+
+**Benefits**:
+- Room numbers now appear as clean integers (e.g., "3" instead of "3.0")
+- Agenda times are properly formatted (e.g., "1100" instead of "1100.0")
+- Date fields are correctly generated even with non-standard agenda time formats
 
 **Implementation**:
 - Store mapping between Session_IDs and assigned filenames in `data/session_id_mapping.json`

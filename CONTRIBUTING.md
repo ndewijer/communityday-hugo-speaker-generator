@@ -422,6 +422,33 @@ The CI pipeline uses the exact same tools and versions as local development:
 2. **Configuration**: Update `src/config.py` for new settings
 3. **Dependencies**: Add to `requirements.txt` (runtime) or `dev-requirements.txt` (development)
 
+### Testing Multiple Speakers and Session Removal
+
+When testing the multiple speakers per session and session removal features:
+
+1. **Multiple Speakers Testing**:
+   - Create Excel entries with the same `Session_ID` but different speakers
+   - Verify that all speakers appear in the session's YAML frontmatter
+   - Check that session details (title, abstract, etc.) are taken from the first speaker's entry
+
+2. **Session Removal Testing**:
+   - Remove a session entry from the Excel file
+   - Run the generator and verify the session file is deleted
+   - Check that the session ID remains in the mapping file (not reused)
+
+3. **Speaker Removal Testing**:
+   - Remove a speaker from a multi-speaker session in the Excel file
+   - Verify that the speaker's profile is removed
+   - Confirm that the session remains with the remaining speakers
+   - Remove all speakers from a session and verify the session file is deleted
+
+4. **Numeric Field Handling Testing**:
+   - Ensure Excel numeric values (room numbers, agenda times) are properly formatted
+   - Verify room numbers appear as clean integers (e.g., "3" instead of "3.0")
+   - Check agenda times are properly formatted (e.g., "1100" instead of "1100.0")
+   - Test with various agenda time formats to ensure robust parsing
+   - Confirm date fields are correctly generated in ISO 8601 format
+
 ### Updating Dependencies
 
 ```bash
