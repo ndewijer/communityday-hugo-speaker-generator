@@ -18,6 +18,7 @@ This project generates Hugo templates for the AWS Community Day website based on
   - Session Duration, Session Level
   - Room (room number/name)
   - Agenda (time in HHMM format)
+  - Sponsor (sponsor name(s), comma-separated)
   - Voter_1 through Voter_N (future use)
 
 ### Output Structure
@@ -83,6 +84,9 @@ speakers:
     - "speaker-slug-2"  # Multiple speakers supported
 room: "2"  # Room number/name from data source
 agenda: "1100"  # Agenda time in HHMM format from data source
+sponsors:  # Only included when sponsors exist
+    - "sponsor-slug-1"
+    - "sponsor-slug-2"  # Multiple sponsors supported, comma-separated in Excel
 duration: "30" or "60"  # Mapped from duration string
 ---
 

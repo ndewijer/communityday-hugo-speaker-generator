@@ -7,6 +7,7 @@ A Python tool to generate Hugo markdown files for AWS Community Day speakers and
 - **Speaker Profile Generation**: Creates individual speaker pages with bio, headline, and LinkedIn information
 - **Session File Generation**: Generates session pages with proper filename conventions (acd{level}{number}.md)
 - **Multiple Speakers Per Session**: Supports any number of speakers for a single session
+- **Session Sponsor Support**: Automatically processes sponsor information with slug conversion and comma-separated value parsing
 - **Session & Speaker Removal**: Handles removal of sessions and speakers from the datasource
 - **Persistent Session IDs**: Maintains stable session filenames even when sessions are added or reordered
 - **Content Verification**: Updates existing files when source data changes instead of skipping them
@@ -117,19 +118,28 @@ Edit `src/config.py` to customize:
 ## Data Requirements
 
 Your Excel file should contain these columns:
-- `Session_ID` - Unique session identifier
-- `Email Address` - Speaker unique identifier
-- `Speaker Name` - Speaker's full name
-- `Speaker Headline` - Speaker's professional headline
-- `Bio` - Speaker biography
-- `Link to your LinkedIn profile` - LinkedIn URL (optional)
-- `Link to photo (Optional, defaults to LinkedIn Profile)` - Custom photo URL
-- `Title of Session` - Session title
-- `Abstract of Session` - Session description
-- `Session Duration` - Duration (e.g., "20-30 minutes", "40-50 minutes")
-- `Session Level` - Level (e.g., "100 (Beginner)", "300 (Advanced)")
-- `Room` - Room number/name for the session
-- `Agenda` - Time in HHMM format (e.g., "1100" for 11:00 AM)
+
+### **MANDATORY Columns** (Required for basic functionality):
+- **`Session_ID`** - Unique session identifier (UUID format)
+- **`Email Address`** - Speaker unique identifier (used for deduplication)
+- **`Speaker Name`** - Speaker's full name
+- **`Title of Session`** - Session title
+- **`Abstract of Session`** - Session description
+- **`Session Level`** - Level (e.g., "100 (Beginner)", "200 (Intermediate)", "300 (Advanced)", "400 (Expert)", "500 (Principal)")
+
+### **OPTIONAL Columns** (Gracefully handled if missing/empty):
+
+#### Speaker-Related Optional Columns:
+- **`Speaker Headline`** - Professional headline (empty string if missing)
+- **`Bio`** - Speaker biography (empty string if missing)
+- **`Link to your LinkedIn profile`** - LinkedIn URL (commented out in YAML if missing)
+- **`Link to photo (Optional, defaults to LinkedIn Profile)`** - Custom photo URL (falls back to LinkedIn or default image)
+
+#### Session-Related Optional Columns:
+- **`Session Duration`** - Duration string (e.g., "20-30 minutes", "40-50 minutes") - defaults to "30" if missing
+- **`Room`** - Room number/name for the session (empty string if missing)
+- **`Agenda`** - Time in HHMM format (e.g., "1100" for 11:00 AM) - empty string if missing
+- **`Sponsor`** - Sponsor name(s), comma-separated for multiple sponsors (no field generated if missing)
 
 ## Features in Detail
 
@@ -153,6 +163,17 @@ Your Excel file should contain these columns:
 - Generates ISO 8601 datetime field from event date and agenda time
 - Includes room and agenda information from data source
 - Preserves session IDs even after removal to maintain URL stability
+
+### Sponsor Processing
+- Parses comma-separated sponsor values from the `Sponsor` column
+- Converts sponsor names to slugs (lowercase, spaces to dashes, special characters removed)
+- Only includes sponsors field in YAML when sponsors exist (clean output)
+- Supports multiple sponsors per session
+- Detects sponsor changes for content verification and updates
+- Examples:
+  - `"Elastic Scale"` → `sponsors: ["elastic-scale"]`
+  - `"Palo Alto Networks, AWS"` → `sponsors: ["palo-alto-networks", "aws"]`
+  - Empty/missing → No sponsors field in YAML
 
 ### Image Processing
 - Downloads from custom photo URLs first
