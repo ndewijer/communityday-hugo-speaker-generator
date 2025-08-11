@@ -303,6 +303,11 @@ class SessionGenerator:
                 if sponsor_slugs:
                     session_data["sponsor_slugs"] = sponsor_slugs
 
+            # Extract duration
+            duration_match = re.search(r'duration:\s*"([^"]*)"', frontmatter)
+            if duration_match:
+                session_data["duration"] = duration_match.group(1)
+
             # Extract abstract (content after frontmatter)
             abstract_match = re.search(r"---\s+(.*?)\s+---(.*)", content, re.DOTALL)
             if abstract_match:
@@ -326,7 +331,7 @@ class SessionGenerator:
             True if update is needed, False otherwise
         """
         # Check key fields that would require an update
-        fields_to_check = ["title", "room", "agenda", "abstract"]
+        fields_to_check = ["title", "room", "agenda", "abstract", "duration"]
 
         for field in fields_to_check:
             current_value = session_data.get(field, "")
