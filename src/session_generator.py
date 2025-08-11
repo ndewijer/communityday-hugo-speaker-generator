@@ -354,9 +354,13 @@ class SessionGenerator:
 
         return False
 
-    def generate_session_filenames(self, sessions: List[Dict]) -> Dict[str, str]:
+    def reserve_session_filenames(self, sessions: List[Dict]) -> Dict[str, str]:
         """
-        Generate session filenames based on level and persistent mapping.
+        Reserve session filenames without persisting changes.
+
+        This method generates tentative filenames for sessions without incrementing
+        the persistent level counters. Counters are only incremented when files
+        are successfully generated.
 
         Args:
             sessions: List of session dictionaries
@@ -366,13 +370,18 @@ class SessionGenerator:
         """
         session_filenames = {}
         session_id_mapping = self.mapping_data.get("session_id_mapping", {})
-        level_counters = {
+
+        # Working copy of level counters (not persisted until commit)
+        self.tentative_level_counters = {
             1: int(self.mapping_data.get("level_counters", {}).get("1", 0)),
             2: int(self.mapping_data.get("level_counters", {}).get("2", 0)),
             3: int(self.mapping_data.get("level_counters", {}).get("3", 0)),
             4: int(self.mapping_data.get("level_counters", {}).get("4", 0)),
             5: int(self.mapping_data.get("level_counters", {}).get("5", 0)),
         }
+
+        # Track tentative new mappings (not persisted until commit)
+        self.tentative_new_mappings = {}
 
         # First, assign filenames to sessions that already have mappings
         for session in sessions:
@@ -389,37 +398,74 @@ class SessionGenerator:
                 )
                 session_filenames[session_id] = filename
 
-        # Then, assign filenames to new sessions
+        # Then, reserve filenames for new sessions (tentatively)
         for session in sessions:
             session_id = session.get("id", "")
             if not session_id or session_id in session_filenames:
                 continue
 
-            # This is a new session, assign a new filename
+            # This is a new session, reserve a filename
             level = extract_session_level(session.get("level", ""))
-            level_counters[level] += 1
-            base_filename = f"acd{level}{level_counters[level]:02d}"
+            self.tentative_level_counters[level] += 1
+            base_filename = f"acd{level}{self.tentative_level_counters[level]:02d}"
             filename = f"{base_filename}.md"
 
-            # Add to mappings
+            # Add to tentative mappings (not persisted yet)
             session_filenames[session_id] = filename
-            session_id_mapping[session_id] = base_filename  # Store without extension
-
-        # Update the mapping data
-        self.mapping_data["session_id_mapping"] = session_id_mapping
-        self.mapping_data["level_counters"] = {
-            "1": level_counters[1],
-            "2": level_counters[2],
-            "3": level_counters[3],
-            "4": level_counters[4],
-            "5": level_counters[5],
-        }
-
-        # Save the updated mapping
-        self._save_session_id_mapping()
+            self.tentative_new_mappings[session_id] = base_filename
 
         self.session_filenames = session_filenames
         return session_filenames
+
+    def commit_session_filename(self, session_id: str) -> bool:
+        """
+        Commit a reserved filename after successful file generation.
+
+        This method moves a tentative filename reservation to the persistent
+        mapping and increments the level counter.
+
+        Args:
+            session_id: Session ID to commit
+
+        Returns:
+            True if committed successfully, False if session wasn't reserved
+        """
+        if session_id not in self.tentative_new_mappings:
+            # Session was already mapped or not reserved
+            return True
+
+        # Move from tentative to persistent mapping
+        base_filename = self.tentative_new_mappings[session_id]
+        self.mapping_data["session_id_mapping"][session_id] = base_filename
+
+        # Update the persistent level counter for this level
+        level = extract_session_level("")  # We need to extract level from filename
+        # Extract level from filename (e.g., "acd201" -> level 2)
+        level_match = re.search(r"acd(\d)", base_filename)
+        if level_match:
+            level = int(level_match.group(1))
+            current_counter = int(self.mapping_data.get("level_counters", {}).get(str(level), 0))
+            # Extract number from filename to get the actual counter value
+            number_match = re.search(r"acd\d(\d+)", base_filename)
+            if number_match:
+                new_counter = int(number_match.group(1))
+                self.mapping_data["level_counters"][str(level)] = str(
+                    max(current_counter, new_counter)
+                )
+
+        # Remove from tentative mappings
+        del self.tentative_new_mappings[session_id]
+
+        return True
+
+    def save_committed_mappings(self) -> bool:
+        """
+        Save all committed mappings to the persistent file.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        return self._save_session_id_mapping()
 
     def should_skip_session_file(
         self, filename: str, session_data: Dict, force_regenerate: bool = False
@@ -564,8 +610,8 @@ class SessionGenerator:
         # Handle removed sessions
         self.handle_removed_sessions(current_session_ids)
 
-        # Generate filenames first (using persistent mapping)
-        session_filenames = self.generate_session_filenames(sessions)
+        # Reserve filenames first (without persisting changes)
+        session_filenames = self.reserve_session_filenames(sessions)
 
         total_sessions = len(sessions)
         current = 0
@@ -598,13 +644,18 @@ class SessionGenerator:
                     current, total_sessions, f"{EMOJIS['check']} Skipped: {filename} (no changes)"
                 )
                 skipped_count += 1
+                # For existing sessions, commit the filename (no-op for already mapped sessions)
+                self.commit_session_filename(session_id)
             elif should_update:
                 print_progress(
                     current,
                     total_sessions,
                     f"{EMOJIS['update']} Updating: {filename} - {session_title}",
                 )
-                self.update_session_file(session, filename)
+                success = self.update_session_file(session, filename)
+                if success:
+                    # Commit the filename only on successful update
+                    self.commit_session_filename(session_id)
                 updated_count += 1
             else:
                 if force_regenerate:
@@ -620,7 +671,13 @@ class SessionGenerator:
                         f"{EMOJIS['document']} Generating: {filename} - {session_title}",
                     )
 
-                self.generate_session_file(session, filename)
+                # Generate the file and only commit filename on success
+                success = self.generate_session_file(session, filename)
+                if success:
+                    self.commit_session_filename(session_id)
+
+        # Save all committed mappings to persistent storage
+        self.save_committed_mappings()
 
         print(f"   {EMOJIS['check']} Generated {self.generated_count} session files")
         if updated_count > 0:
