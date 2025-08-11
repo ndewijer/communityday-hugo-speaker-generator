@@ -10,7 +10,12 @@ from typing import Dict, List
 import pandas as pd
 
 from .config import EXCEL_FILE_PATH, SESSION_FIELD_MAPPING, SPEAKER_FIELD_MAPPING
-from .utils import generate_unique_speaker_slug, safe_get_field, validate_session_id
+from .utils import (
+    generate_unique_speaker_slug,
+    parse_and_slugify_sponsors,
+    safe_get_field,
+    validate_session_id,
+)
 
 
 class DataProcessor:
@@ -99,6 +104,7 @@ class DataProcessor:
             session_level = safe_get_field(row, "Session Level")
             session_room = safe_get_field(row, SESSION_FIELD_MAPPING["room"])
             session_agenda = safe_get_field(row, SESSION_FIELD_MAPPING["agenda"])
+            session_sponsors = safe_get_field(row, SESSION_FIELD_MAPPING["sponsors"])
 
             # Validate session ID
             if not validate_session_id(session_id):
@@ -140,6 +146,7 @@ class DataProcessor:
                 "level": session_level,
                 "room": session_room,
                 "agenda": session_agenda,
+                "sponsors": session_sponsors,
             }
 
             speakers[email]["sessions"].append(session_data)
@@ -167,6 +174,9 @@ class DataProcessor:
                 session_id = session["id"]
 
                 if session_id not in sessions_by_id:
+                    # Parse sponsor slugs from sponsor string
+                    sponsor_slugs = parse_and_slugify_sponsors(session.get("sponsors", ""))
+
                     # Create new session entry
                     sessions_by_id[session_id] = {
                         "id": session_id,
@@ -178,6 +188,7 @@ class DataProcessor:
                         "agenda": session.get("agenda", ""),
                         "speaker_slugs": [speaker_slug],
                         "speaker_names": [speaker_data["name"]],
+                        "sponsor_slugs": sponsor_slugs,
                     }
                 else:
                     # Add this speaker to existing session

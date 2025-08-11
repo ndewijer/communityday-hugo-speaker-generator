@@ -20,6 +20,7 @@ SESSION_FIELD_MAPPING = {
     "duration": "Session Duration",
     "room": "Room",
     "agenda": "Agenda",
+    "sponsors": "Sponsor",
 }
 
 # Event date for session datetime generation
