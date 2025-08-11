@@ -41,6 +41,7 @@ class SessionGenerator:
             session_abstract = session_data.get("abstract", "")
             session_duration = session_data.get("duration", "")
             speaker_slugs = session_data.get("speaker_slugs", [])
+            sponsor_slugs = session_data.get("sponsor_slugs", [])
             room = session_data.get("room", "")
             agenda = session_data.get("agenda", "")
 
@@ -53,6 +54,7 @@ class SessionGenerator:
                 speaker_slugs,
                 room,
                 agenda,
+                sponsor_slugs,
             )
 
             # Write markdown file
@@ -80,6 +82,7 @@ class SessionGenerator:
         speaker_slugs: List[str],
         room: str = "",
         agenda: str = "",
+        sponsor_slugs: List[str] = None,
     ) -> str:
         """
         Generate session markdown content.
@@ -92,6 +95,7 @@ class SessionGenerator:
             speaker_slugs: List of speaker slugs
             room: Room number/name
             agenda: Agenda time in HHMM format
+            sponsor_slugs: List of sponsor slugs (optional)
 
         Returns:
             Formatted markdown content
@@ -119,6 +123,17 @@ class SessionGenerator:
         else:
             speakers_field = "speakers: []"
 
+        # Handle sponsors field - only include if sponsors exist
+        if sponsor_slugs is None:
+            sponsor_slugs = []
+
+        sponsors_field = ""
+        if sponsor_slugs:
+            sponsors_lines = ["sponsors:"]
+            for slug in sponsor_slugs:
+                sponsors_lines.append(f'    - "{slug}"')
+            sponsors_field = "\n".join(sponsors_lines)
+
         # Handle duration field (may have multiple options)
         duration_lines = process_multiple_durations(duration)
         duration_field = "\n".join(duration_lines)
@@ -126,8 +141,23 @@ class SessionGenerator:
         # Format abstract
         abstract_content = abstract if abstract else '""'
 
-        # Generate markdown
-        markdown = f"""---
+        # Generate markdown with conditional sponsors field
+        if sponsors_field:
+            markdown = f"""---
+{id_field}
+{title_field}
+{date_field}
+{speakers_field}
+{room_field}
+{agenda_field}
+{sponsors_field}
+{duration_field}
+---
+
+{abstract_content}
+"""
+        else:
+            markdown = f"""---
 {id_field}
 {title_field}
 {date_field}
@@ -259,6 +289,20 @@ class SessionGenerator:
                 if speaker_slugs:
                     session_data["speaker_slugs"] = speaker_slugs
 
+            # Extract all sponsor slugs
+            sponsor_slugs = []
+            sponsors_section = re.search(
+                r"sponsors:(.*?)(?:\n\w|\n-)", frontmatter + "\nend", re.DOTALL
+            )
+
+            if sponsors_section:
+                sponsors_text = sponsors_section.group(1)
+                for match in speaker_pattern.finditer(sponsors_text):
+                    sponsor_slugs.append(match.group(1))
+
+                if sponsor_slugs:
+                    session_data["sponsor_slugs"] = sponsor_slugs
+
             # Extract abstract (content after frontmatter)
             abstract_match = re.search(r"---\s+(.*?)\s+---(.*)", content, re.DOTALL)
             if abstract_match:
@@ -298,6 +342,14 @@ class SessionGenerator:
 
         # If the speaker lists are different, update is needed
         if set(current_speakers) != set(existing_speakers):
+            return True
+
+        # Special handling for sponsor slugs (comparing lists)
+        current_sponsors = session_data.get("sponsor_slugs", [])
+        existing_sponsors = existing_data.get("sponsor_slugs", [])
+
+        # If the sponsor lists are different, update is needed
+        if set(current_sponsors) != set(existing_sponsors):
             return True
 
         return False
@@ -421,6 +473,7 @@ class SessionGenerator:
             session_abstract = session_data.get("abstract", "")
             session_duration = session_data.get("duration", "")
             speaker_slugs = session_data.get("speaker_slugs", [])
+            sponsor_slugs = session_data.get("sponsor_slugs", [])
             room = session_data.get("room", "")
             agenda = session_data.get("agenda", "")
 
@@ -432,6 +485,7 @@ class SessionGenerator:
                 speaker_slugs,
                 room,
                 agenda,
+                sponsor_slugs,
             )
 
             # Write updated markdown file
