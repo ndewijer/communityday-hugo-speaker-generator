@@ -357,7 +357,7 @@ class SessionGenerator:
     def reserve_session_filenames(self, sessions: List[Dict]) -> Dict[str, str]:
         """
         Reserve session filenames without persisting changes.
-        
+
         This method generates tentative filenames for sessions without incrementing
         the persistent level counters. Counters are only incremented when files
         are successfully generated.
@@ -370,7 +370,7 @@ class SessionGenerator:
         """
         session_filenames = {}
         session_id_mapping = self.mapping_data.get("session_id_mapping", {})
-        
+
         # Working copy of level counters (not persisted until commit)
         self.tentative_level_counters = {
             1: int(self.mapping_data.get("level_counters", {}).get("1", 0)),
@@ -379,7 +379,7 @@ class SessionGenerator:
             4: int(self.mapping_data.get("level_counters", {}).get("4", 0)),
             5: int(self.mapping_data.get("level_counters", {}).get("5", 0)),
         }
-        
+
         # Track tentative new mappings (not persisted until commit)
         self.tentative_new_mappings = {}
 
@@ -420,7 +420,7 @@ class SessionGenerator:
     def commit_session_filename(self, session_id: str) -> bool:
         """
         Commit a reserved filename after successful file generation.
-        
+
         This method moves a tentative filename reservation to the persistent
         mapping and increments the level counter.
 
@@ -433,11 +433,11 @@ class SessionGenerator:
         if session_id not in self.tentative_new_mappings:
             # Session was already mapped or not reserved
             return True
-            
+
         # Move from tentative to persistent mapping
         base_filename = self.tentative_new_mappings[session_id]
         self.mapping_data["session_id_mapping"][session_id] = base_filename
-        
+
         # Update the persistent level counter for this level
         level = extract_session_level("")  # We need to extract level from filename
         # Extract level from filename (e.g., "acd201" -> level 2)
@@ -449,17 +449,19 @@ class SessionGenerator:
             number_match = re.search(r"acd\d(\d+)", base_filename)
             if number_match:
                 new_counter = int(number_match.group(1))
-                self.mapping_data["level_counters"][str(level)] = str(max(current_counter, new_counter))
-        
+                self.mapping_data["level_counters"][str(level)] = str(
+                    max(current_counter, new_counter)
+                )
+
         # Remove from tentative mappings
         del self.tentative_new_mappings[session_id]
-        
+
         return True
 
     def save_committed_mappings(self) -> bool:
         """
         Save all committed mappings to the persistent file.
-        
+
         Returns:
             True if successful, False otherwise
         """
