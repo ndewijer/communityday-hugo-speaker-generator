@@ -285,3 +285,32 @@ def format_session_datetime(agenda_time: str) -> str:
     except (ValueError, IndexError):
         # Return empty string if there's any error in parsing
         return ""
+
+
+def parse_and_slugify_sponsors(sponsor_string: str) -> List[str]:
+    """
+    Parse comma-separated sponsor string and convert to slugs.
+
+    Args:
+        sponsor_string: Comma-separated sponsor names
+
+    Returns:
+        List of sponsor slugs (lowercase, spaces to dashes)
+    """
+    if not sponsor_string or sponsor_string.strip() == "":
+        return []
+
+    sponsors = [sponsor.strip() for sponsor in sponsor_string.split(",")]
+    sponsor_slugs = []
+
+    for sponsor in sponsors:
+        if sponsor:  # Skip empty strings
+            # Convert to slug: lowercase, spaces to dashes, remove special chars
+            slug = sponsor.lower().replace(" ", "-")
+            slug = re.sub(r"[^\w\s-]", "", slug)  # Remove special chars
+            slug = re.sub(r"[-\s]+", "-", slug)  # Multiple dashes/spaces to single dash
+            slug = slug.strip("-")  # Remove leading/trailing dashes
+            if slug:
+                sponsor_slugs.append(slug)
+
+    return sponsor_slugs
